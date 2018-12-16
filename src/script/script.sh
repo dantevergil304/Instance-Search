@@ -9,5 +9,5 @@ do
     end_time="$4"
     output="../../data/raw_data/shots/$2.mp4"
     echo $name
-    ffmpeg -nostdin -ss $start_time -i $name -to $end_time -c copy -copyts $output
+    ffmpeg -nostdin -ss $start_time -i $name -to $end_time -c:v libx264 -c:a aac -copyts $output
 done <"$file"
