@@ -25,5 +25,9 @@
     "features" : {
         "VGG_default_features" : "../features/VGG_Face_default/",
         "VGG_fine_tuned_features" : "../features/VGG_Face_fine_tuned"
+    },
+   
+    "sub_projects" : {
+	"Image-Super-Resolution" : "./Image-Super-Resolution"
     }
 }
