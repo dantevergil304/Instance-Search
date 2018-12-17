@@ -1,0 +1,216 @@
+<!DOCTYPE videoInstanceTopics SYSTEM "http://www-nlpir.nist.gov/projects/tv2017/dtds/videoInstanceTopics.dtd">
+<videoInstanceTopics>
+
+
+<videoInstanceTopic person="Peggy" location="Cafe1" num="9189">
+<imageExample src="peggy.1.src.bmp" mask="peggy.1.mask.bmp" shotID="shot0_1230"/>
+<imageExample src="peggy.2.src.bmp" mask="peggy.2.mask.bmp" shotID="shot0_1522"/>
+<imageExample src="peggy.3.src.bmp" mask="peggy.3.mask.bmp" shotID="shot0_1532"/>
+<imageExample src="peggy.4.src.bmp" mask="peggy.4.mask.bmp" shotID="shot0_1879"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Peggy" location="LivingRoom2" num="9190">
+<imageExample src="peggy.1.src.bmp" mask="peggy.1.mask.bmp" shotID="shot0_1230"/>
+<imageExample src="peggy.2.src.bmp" mask="peggy.2.mask.bmp" shotID="shot0_1522"/>
+<imageExample src="peggy.3.src.bmp" mask="peggy.3.mask.bmp" shotID="shot0_1532"/>
+<imageExample src="peggy.4.src.bmp" mask="peggy.4.mask.bmp" shotID="shot0_1879"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Peggy" location="Kitchen2" num="9191">
+<imageExample src="peggy.1.src.bmp" mask="peggy.1.mask.bmp" shotID="shot0_1230"/>
+<imageExample src="peggy.2.src.bmp" mask="peggy.2.mask.bmp" shotID="shot0_1522"/>
+<imageExample src="peggy.3.src.bmp" mask="peggy.3.mask.bmp" shotID="shot0_1532"/>
+<imageExample src="peggy.4.src.bmp" mask="peggy.4.mask.bmp" shotID="shot0_1879"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Billy" location="Cafe1" num="9192">
+<imageExample src="billy.1.src.bmp" mask="billy.1.mask.bmp" shotID="shot0_1301"/>
+<imageExample src="billy.2.src.bmp" mask="billy.2.mask.bmp" shotID="shot0_1370"/>
+<imageExample src="billy.3.src.bmp" mask="billy.3.mask.bmp" shotID="shot0_1189"/>
+<imageExample src="billy.4.src.bmp" mask="billy.4.mask.bmp" shotID="shot0_1172"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Billy" location="Laundrette" num="9193">
+<imageExample src="billy.1.src.bmp" mask="billy.1.mask.bmp" shotID="shot0_1301"/>
+<imageExample src="billy.2.src.bmp" mask="billy.2.mask.bmp" shotID="shot0_1370"/>
+<imageExample src="billy.3.src.bmp" mask="billy.3.mask.bmp" shotID="shot0_1189"/>
+<imageExample src="billy.4.src.bmp" mask="billy.4.mask.bmp" shotID="shot0_1172"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Billy" location="LivingRoom2" num="9194">
+<imageExample src="billy.1.src.bmp" mask="billy.1.mask.bmp" shotID="shot0_1301"/>
+<imageExample src="billy.2.src.bmp" mask="billy.2.mask.bmp" shotID="shot0_1370"/>
+<imageExample src="billy.3.src.bmp" mask="billy.3.mask.bmp" shotID="shot0_1189"/>
+<imageExample src="billy.4.src.bmp" mask="billy.4.mask.bmp" shotID="shot0_1172"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Billy" location="Kitchen2" num="9195">
+<imageExample src="billy.1.src.bmp" mask="billy.1.mask.bmp" shotID="shot0_1301"/>
+<imageExample src="billy.2.src.bmp" mask="billy.2.mask.bmp" shotID="shot0_1370"/>
+<imageExample src="billy.3.src.bmp" mask="billy.3.mask.bmp" shotID="shot0_1189"/>
+<imageExample src="billy.4.src.bmp" mask="billy.4.mask.bmp" shotID="shot0_1172"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Ian" location="Cafe1" num="9196">
+<imageExample src="ian.1.src.bmp" mask="ian.1.mask.bmp" shotID="shot122_26"/>
+<imageExample src="ian.2.src.bmp" mask="ian.2.mask.bmp" shotID="shot122_455"/>
+<imageExample src="ian.3.src.bmp" mask="ian.3.mask.bmp" shotID="shot0_939"/>
+<imageExample src="ian.4.src.bmp" mask="ian.4.mask.bmp" shotID="shot0_506"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Ian" location="Laundrette" num="9197">
+<imageExample src="ian.1.src.bmp" mask="ian.1.mask.bmp" shotID="shot122_26"/>
+<imageExample src="ian.2.src.bmp" mask="ian.2.mask.bmp" shotID="shot122_455"/>
+<imageExample src="ian.3.src.bmp" mask="ian.3.mask.bmp" shotID="shot0_939"/>
+<imageExample src="ian.4.src.bmp" mask="ian.4.mask.bmp" shotID="shot0_506"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Ian" location="Market" num="9198">
+<imageExample src="ian.1.src.bmp" mask="ian.1.mask.bmp" shotID="shot122_26"/>
+<imageExample src="ian.2.src.bmp" mask="ian.2.mask.bmp" shotID="shot122_455"/>
+<imageExample src="ian.3.src.bmp" mask="ian.3.mask.bmp" shotID="shot0_939"/>
+<imageExample src="ian.4.src.bmp" mask="ian.4.mask.bmp" shotID="shot0_506"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Janine" location="Cafe1" num="9199">
+<imageExample src="janine.1.src.bmp" mask="janine.1.mask.bmp" shotID="shot122_135"/>
+<imageExample src="janine.2.src.bmp" mask="janine.2.mask.bmp" shotID="shot122_141"/>
+<imageExample src="janine.3.src.bmp" mask="janine.3.mask.bmp" shotID="shot122_142"/>
+<imageExample src="janine.4.src.bmp" mask="janine.4.mask.bmp" shotID="shot122_143"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Janine" location="Laundrette" num="9200">
+<imageExample src="janine.1.src.bmp" mask="janine.1.mask.bmp" shotID="shot122_135"/>
+<imageExample src="janine.2.src.bmp" mask="janine.2.mask.bmp" shotID="shot122_141"/>
+<imageExample src="janine.3.src.bmp" mask="janine.3.mask.bmp" shotID="shot122_142"/>
+<imageExample src="janine.4.src.bmp" mask="janine.4.mask.bmp" shotID="shot122_143"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Janine" location="Kitchen2" num="9201">
+<imageExample src="janine.1.src.bmp" mask="janine.1.mask.bmp" shotID="shot122_135"/>
+<imageExample src="janine.2.src.bmp" mask="janine.2.mask.bmp" shotID="shot122_141"/>
+<imageExample src="janine.3.src.bmp" mask="janine.3.mask.bmp" shotID="shot122_142"/>
+<imageExample src="janine.4.src.bmp" mask="janine.4.mask.bmp" shotID="shot122_143"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Janine" location="Market" num="9202">
+<imageExample src="janine.1.src.bmp" mask="janine.1.mask.bmp" shotID="shot122_135"/>
+<imageExample src="janine.2.src.bmp" mask="janine.2.mask.bmp" shotID="shot122_141"/>
+<imageExample src="janine.3.src.bmp" mask="janine.3.mask.bmp" shotID="shot122_142"/>
+<imageExample src="janine.4.src.bmp" mask="janine.4.mask.bmp" shotID="shot122_143"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Archie" location="Laundrette" num="9203">
+<imageExample src="archie.1.src.bmp" mask="archie.1.mask.bmp" shotID="shot122_141"/>
+<imageExample src="archie.2.src.bmp" mask="archie.2.mask.bmp" shotID="shot122_142"/>
+<imageExample src="archie.3.src.bmp" mask="archie.3.mask.bmp" shotID="shot122_249"/>
+<imageExample src="archie.4.src.bmp" mask="archie.4.mask.bmp" shotID="shot122_254"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Archie" location="LivingRoom2" num="9204">
+<imageExample src="archie.1.src.bmp" mask="archie.1.mask.bmp" shotID="shot122_141"/>
+<imageExample src="archie.2.src.bmp" mask="archie.2.mask.bmp" shotID="shot122_142"/>
+<imageExample src="archie.3.src.bmp" mask="archie.3.mask.bmp" shotID="shot122_249"/>
+<imageExample src="archie.4.src.bmp" mask="archie.4.mask.bmp" shotID="shot122_254"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Archie" location="Market" num="9205">
+<imageExample src="archie.1.src.bmp" mask="archie.1.mask.bmp" shotID="shot122_141"/>
+<imageExample src="archie.2.src.bmp" mask="archie.2.mask.bmp" shotID="shot122_142"/>
+<imageExample src="archie.3.src.bmp" mask="archie.3.mask.bmp" shotID="shot122_249"/>
+<imageExample src="archie.4.src.bmp" mask="archie.4.mask.bmp" shotID="shot122_254"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Ryan" location="Cafe1" num="9206">
+<imageExample src="ryan.1.src.bmp" mask="ryan.1.mask.bmp" shotID="shot122_210"/>
+<imageExample src="ryan.2.src.bmp" mask="ryan.2.mask.bmp" shotID="shot122_203"/>
+<imageExample src="ryan.3.src.bmp" mask="ryan.3.mask.bmp" shotID="shot122_210"/>
+<imageExample src="ryan.4.src.bmp" mask="ryan.4.mask.bmp" shotID="shot123_511"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Ryan" location="Laundrette" num="9207">
+<imageExample src="ryan.1.src.bmp" mask="ryan.1.mask.bmp" shotID="shot122_210"/>
+<imageExample src="ryan.2.src.bmp" mask="ryan.2.mask.bmp" shotID="shot122_203"/>
+<imageExample src="ryan.3.src.bmp" mask="ryan.3.mask.bmp" shotID="shot122_210"/>
+<imageExample src="ryan.4.src.bmp" mask="ryan.4.mask.bmp" shotID="shot123_511"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Ryan" location="Kitchen2" num="9208">
+<imageExample src="ryan.1.src.bmp" mask="ryan.1.mask.bmp" shotID="shot122_210"/>
+<imageExample src="ryan.2.src.bmp" mask="ryan.2.mask.bmp" shotID="shot122_203"/>
+<imageExample src="ryan.3.src.bmp" mask="ryan.3.mask.bmp" shotID="shot122_210"/>
+<imageExample src="ryan.4.src.bmp" mask="ryan.4.mask.bmp" shotID="shot123_511"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Shirley" location="Cafe1" num="9209">
+<imageExample src="shirley.1.src.bmp" mask="shirley.1.mask.bmp" shotID="shot0_120"/>
+<imageExample src="shirley.2.src.bmp" mask="shirley.2.mask.bmp" shotID="shot0_128"/>
+<imageExample src="shirley.3.src.bmp" mask="shirley.3.mask.bmp" shotID="shot0_130"/>
+<imageExample src="shirley.4.src.bmp" mask="shirley.4.mask.bmp" shotID="shot0_614"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Shirley" location="Laundrette" num="9210">
+<imageExample src="shirley.1.src.bmp" mask="shirley.1.mask.bmp" shotID="shot0_120"/>
+<imageExample src="shirley.2.src.bmp" mask="shirley.2.mask.bmp" shotID="shot0_128"/>
+<imageExample src="shirley.3.src.bmp" mask="shirley.3.mask.bmp" shotID="shot0_130"/>
+<imageExample src="shirley.4.src.bmp" mask="shirley.4.mask.bmp" shotID="shot0_614"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Shirley" location="LivingRoom2" num="9211">
+<imageExample src="shirley.1.src.bmp" mask="shirley.1.mask.bmp" shotID="shot0_120"/>
+<imageExample src="shirley.2.src.bmp" mask="shirley.2.mask.bmp" shotID="shot0_128"/>
+<imageExample src="shirley.3.src.bmp" mask="shirley.3.mask.bmp" shotID="shot0_130"/>
+<imageExample src="shirley.4.src.bmp" mask="shirley.4.mask.bmp" shotID="shot0_614"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Shirley" location="Kitchen2" num="9212">
+<imageExample src="shirley.1.src.bmp" mask="shirley.1.mask.bmp" shotID="shot0_120"/>
+<imageExample src="shirley.2.src.bmp" mask="shirley.2.mask.bmp" shotID="shot0_128"/>
+<imageExample src="shirley.3.src.bmp" mask="shirley.3.mask.bmp" shotID="shot0_130"/>
+<imageExample src="shirley.4.src.bmp" mask="shirley.4.mask.bmp" shotID="shot0_614"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Shirley" location="Market" num="9213">
+<imageExample src="shirley.1.src.bmp" mask="shirley.1.mask.bmp" shotID="shot0_120"/>
+<imageExample src="shirley.2.src.bmp" mask="shirley.2.mask.bmp" shotID="shot0_128"/>
+<imageExample src="shirley.3.src.bmp" mask="shirley.3.mask.bmp" shotID="shot0_130"/>
+<imageExample src="shirley.4.src.bmp" mask="shirley.4.mask.bmp" shotID="shot0_614"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Peggy" location="Laundrette" num="9214">
+<imageExample src="peggy.1.src.bmp" mask="peggy.1.mask.bmp" shotID="shot0_1230"/>
+<imageExample src="peggy.2.src.bmp" mask="peggy.2.mask.bmp" shotID="shot0_1522"/>
+<imageExample src="peggy.3.src.bmp" mask="peggy.3.mask.bmp" shotID="shot0_1532"/>
+<imageExample src="peggy.4.src.bmp" mask="peggy.4.mask.bmp" shotID="shot0_1879"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Phil" location="Cafe1" num="9215">
+<imageExample src="phil.1.src.bmp" mask="phil.1.mask.bmp" shotID="shot0_1502"/>
+<imageExample src="phil.2.src.bmp" mask="phil.2.mask.bmp" shotID="shot0_1457"/>
+<imageExample src="phil.3.src.bmp" mask="phil.3.mask.bmp" shotID="shot0_1560"/>
+<imageExample src="phil.4.src.bmp" mask="phil.4.mask.bmp" shotID="shot0_1904"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Phil" location="LivingRoom2" num="9216">
+<imageExample src="phil.1.src.bmp" mask="phil.1.mask.bmp" shotID="shot0_1502"/>
+<imageExample src="phil.2.src.bmp" mask="phil.2.mask.bmp" shotID="shot0_1457"/>
+<imageExample src="phil.3.src.bmp" mask="phil.3.mask.bmp" shotID="shot0_1560"/>
+<imageExample src="phil.4.src.bmp" mask="phil.4.mask.bmp" shotID="shot0_1904"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Phil" location="Kitchen2" num="9217">
+<imageExample src="phil.1.src.bmp" mask="phil.1.mask.bmp" shotID="shot0_1502"/>
+<imageExample src="phil.2.src.bmp" mask="phil.2.mask.bmp" shotID="shot0_1457"/>
+<imageExample src="phil.3.src.bmp" mask="phil.3.mask.bmp" shotID="shot0_1560"/>
+<imageExample src="phil.4.src.bmp" mask="phil.4.mask.bmp" shotID="shot0_1904"/>
+</videoInstanceTopic>
+
+<videoInstanceTopic person="Phil" location="Market" num="9218">
+<imageExample src="phil.1.src.bmp" mask="phil.1.mask.bmp" shotID="shot0_1502"/>
+<imageExample src="phil.2.src.bmp" mask="phil.2.mask.bmp" shotID="shot0_1457"/>
+<imageExample src="phil.3.src.bmp" mask="phil.3.mask.bmp" shotID="shot0_1560"/>
+<imageExample src="phil.4.src.bmp" mask="phil.4.mask.bmp" shotID="shot0_1904"/>
+</videoInstanceTopic>
+
+
+</videoInstanceTopics>

@@ -1,0 +1,28 @@
+{
+    "raw_data" : {
+        "raw_videos_folder" : "../data/raw_data/videos/",
+        "raw_shots_folder" : "../data/raw_data/shots/",
+	"queries" : "../data/raw_data/queries/",
+        "num_used_videos" : 2,
+        "num_videos " : 240,
+        "num_shots " : 471523
+    },
+
+    "processed_data" : {
+        "frames_folder" : "../data/processed_data/frames/",
+        "faces_folder" : "../data/processed_data/faces/"
+    },
+
+    "models" : {
+        "SVM_folder" : "../models/SVM/",
+        "VGG_folder" : {
+            "VGG_default_folder" : "../models/VGG_default/",
+            "VGG_fine_tuned_folder" : "../models/VGG_fine_tuned/"  
+        }
+    },
+
+    "features" : {
+        "VGG_default_features" : "../features/VGG_Face_default/",
+        "VGG_fine_tuned_features" : "../features/VGG_Face_fine_tuned"
+    }
+}
