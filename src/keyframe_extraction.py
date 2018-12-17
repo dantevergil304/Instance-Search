@@ -2,6 +2,7 @@ import cv2
 import os
 import errno
 import glob
+import json
 
 
 def getTotalFrame(path):
@@ -60,5 +61,11 @@ def KeyframeExtraction(input_path, output_path, sampling_rate=None):
 
 
 if __name__ == '__main__':
-	for shot in glob.glob('../data/raw_data/shots/*.mp4'):
-		KeyframeExtraction(shot, '../data/processed_data/frames/', 5)	
+	with open("../cfg/config.json", "r") as f:
+		config = json.load(f)
+
+	raw_shot_folder = os.path.abspath(config["raw_data"]["raw_shot_folder"]
+	frames_folder = os.path.abspath(config["processed_data"]["frames_folder"]	
+
+	for shot in glob.glob(os.path.join(raw_shot_folder, '*.mp4')):
+		KeyframeExtraction(shot, frames_folder, 5)	
