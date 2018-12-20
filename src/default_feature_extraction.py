@@ -2,12 +2,12 @@ from keras_vggface.vggface import VGGFace
 from keras_vggface import utils
 from keras.layers import Input
 from keras.engine import Model
+
 import json
 import os
 import pickle
 import numpy as np
 import cv2
-
 
 
 def extract_feature_from_face(model, face):
@@ -18,6 +18,7 @@ def extract_feature_from_face(model, face):
     features = model.predict(face)
     print("\t\tShape : ", features.shape)
     return features    
+
 
 def extract_database_faces_features(model, faces_folder, default_feature_folder):
     for faces_file in os.listdir(faces_folder):
@@ -35,6 +36,7 @@ def extract_database_faces_features(model, faces_folder, default_feature_folder)
             pickle.dump(features_v, f)
         print("\t[+] Saved extracted features to : %s \n"% (save_path))
         
+
 if __name__ == '__main__':
     with open("../cfg/config.json", "r") as f:
         cfg = json.load(f)

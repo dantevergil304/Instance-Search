@@ -2,8 +2,9 @@ from keras_vggface.vggface import VGGFace
 from keras_vggface import utils
 from keras.layers import Input
 from keras.engine import Model
-import numpy as np
 from default_feature_extraction import extract_feature_from_face
+
+import numpy as np
 import json
 import pickle
 import os 
@@ -26,6 +27,7 @@ class SearchEngine(object):
         self.default_feature_folder = os.path.abspath(self.cfg["features"]["VGG_default_features"])
         self.faces_folder = os.path.abspath(self.cfg["processed_data"]["faces_folder"])
 
+
     def remove_bad_faces(self, query_features):        
         n = len(query_features)
         confs = [0] * n
@@ -40,8 +42,9 @@ class SearchEngine(object):
                 query_final.append(query_features[i])
         if len(query_final) == 0:
             print("[!] ERROR : length of query is zero")        
-            return query_features     #In case all faces are "bad" faces, return the same query features        
-        return query_final  #Return list of features of "good" faces
+            return query_features     # In case all faces are "bad" faces, return the same query features        
+        return query_final  # Return list of features of "good" faces
+
 
     def mean_max_similarity(self, query, shot_faces): #mean for query , max for shot
         final_sim = 0;
@@ -50,13 +53,14 @@ class SearchEngine(object):
                 final_sim += max_sim
         return final_sim / len(query)
                                             
+
     def stage_1(self, query):
         result = []
         for shot in os.listdir(self.default_feature_folder):
             shot_path = os.path.join(self.default_feature_folder, shot)
             with open(shot_path, "rb") as f:
                 shot_faces_feat = pickle.load(f)
-            sim = mean_max_similarity(query, shot_faces_feat)
+            sim = self.mean_max_similarity(query, shot_faces_feat)
             result.append((shot, sim, shot_faces_feat))
         result.sort(reverse=True, key= lambda x : x[1])
         result = result[:1000]            
@@ -69,11 +73,14 @@ class SearchEngine(object):
             training_data.extend(list(zip(X, Y)))
         return training_data
 
+
     def stage_2(self, query):
         pass
 
+
     def stage_3(self, query):
         pass
+
 
     def searching(self, query, mask):
         img_features = []        
@@ -83,6 +90,7 @@ class SearchEngine(object):
             img_features.append((faces, feature))
         query = self.remove_bad_faces(img_features)
         #result_stage_1 = self.stage_1(query)            
+
 
 if __name__ == '__main__':
    pass
