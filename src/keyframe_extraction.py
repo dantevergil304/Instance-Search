@@ -50,7 +50,7 @@ def KeyframeExtraction(input_path, output_path, sampling_rate=None):
 
 		if ret is True:
 		    if (sampling_rate is None) or (index % coef == 0):
-			cv2.imwrite(os.path.join(directory_path, str(label).zfill(5					) + '.jpg'), frame)
+				cv2.imwrite(os.path.join(directory_path, str(label).zfill(5) + '.jpg'), frame)
 			label += 1
 		else:
 		    break
