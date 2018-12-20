@@ -8,10 +8,10 @@ sys.path.append('../3rd_party/Image-Super-Resolution')
 import models
 
 
-def apply_super_res(image_path, model_type='rnsr', scale_factor=2, save_intermediate=False, mode='patch'):
+def apply_super_res(true_img, model_type='rnsr', scale_factor=2, save_intermediate=False, mode='patch'):
 	cwd = os.getcwd()
-	image_path = os.path.join(cwd, image_path)
-	print('Image path for applying Super-Resolution:', image_path)
+	# image_path = os.path.join(cwd, image_path)
+	# print('Image path for applying Super-Resolution:', image_path)
 
 	with open('../cfg/config.json', 'r') as f:
 		config = json.load(f)
@@ -33,15 +33,15 @@ def apply_super_res(image_path, model_type='rnsr', scale_factor=2, save_intermed
 	else:
             	model = models.DistilledResNetSR(scale_factor)
 	
-	image = model.upscale(image_path, save_intermediate=save_intermediate, mode=mode, return_image=True)
+	image = model.upscale_direct(true_img, save_intermediate=save_intermediate, mode=mode, return_image=True)
 	os.chdir(cwd)
 
-	image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 	cv2.imshow('Super Resolution', image)
 	cv2.waitKey()
 	cv2.destroyAllWindows()
 	return image
 
 if __name__ == '__main__':
-	# apply_super_res('../data/processed_data/faces/queries/detect_before_mask/archie.2.face.bmp')	
+	true_img = cv2.imread('../data/processed_data/faces/queries/detect_before_mask/archie.2.face.bmp')
+	apply_super_res(true_img)	
 	pass
