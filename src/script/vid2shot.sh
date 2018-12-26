@@ -1,5 +1,5 @@
 #!/bin/bash
-file="../../data/raw_data/info/master_shot_reference.txt.sample"
+file="../../data/raw_data/info/master_shot_reference.txt.sample.1"
 while IFS= read -r line
 do
 	IFS="    "

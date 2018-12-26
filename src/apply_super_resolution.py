@@ -8,7 +8,7 @@ sys.path.append('../3rd_party/Image-Super-Resolution')
 import models
 
 
-def apply_super_res(true_img, model_type='rnsr', scale_factor=2, save_intermediate=False, mode='patch'):
+def apply_super_res(true_img, model_type='distilled_rnsr', scale_factor=2, save_intermediate=False, mode='patch'):
 	cwd = os.getcwd()
 	# image_path = os.path.join(cwd, image_path)
 	# print('Image path for applying Super-Resolution:', image_path)
@@ -36,9 +36,9 @@ def apply_super_res(true_img, model_type='rnsr', scale_factor=2, save_intermedia
 	image = model.upscale_direct(true_img, save_intermediate=save_intermediate, mode=mode, return_image=True)
 	os.chdir(cwd)
 
-	cv2.imshow('Super Resolution', image)
-	cv2.waitKey()
-	cv2.destroyAllWindows()
+	# cv2.imshow('Super Resolution', image)
+	# cv2.waitKey()
+	# cv2.destroyAllWindows()
 	return image
 
 if __name__ == '__main__':

@@ -21,7 +21,7 @@ def detect_face_by_image(query, masks):
 	factor = 0.709
 
 	ret = []
-	
+	result = []	
 	for image, mask in zip(query, masks):
 		image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 		im_height, im_width = image.shape[0], image.shape[1]
@@ -43,32 +43,42 @@ def detect_face_by_image(query, masks):
 				best_bbox = face_info
 				best_overlap = overlap
 
+		mask_img = cv2.bitwise_and(image, image, mask=mask)
 		if best_bbox is not None:
 			x, y, _x, _y = [int(coord) for coord in best_bbox[:4]]
 			face = image[y : _y, x : _x]	
 			face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)
-			cv2.imshow('fig', face)
-			cv2.waitKey()
-			cv2.destroyAllWindows()
+			#cv2.imshow('face extr query', face)
+			#cv2.waitKey()
+			#cv2.destroyAllWindows()
 			ret.append(face)
+			cv2.rectangle(mask_img, (x, y), (_x, _y), (0, 255, 0), 2)
+			result.append(mask_img)
 
-	return ret
+	return ret, result
 
 
 def detect_face_by_path(query_path, masks_path):
 	query = [cv2.imread(im_path) for im_path in query_path]
 	masks = [cv2.imread(mask_path, 0) for mask_path in masks_path]
-	return detect_face_by_image(query, masks)
+	ret, result = detect_face_by_image(query, masks)
+	for res, path in zip(result, query_path):
+		im_name = path.split('/')[-1]	
+		res = cv2.cvtColor(res, cv2.COLOR_RGB2BGR)
+		cv2.imwrite('./test_output/detect_result/' + im_name, res)
+	return zip(ret, query_path, masks_path)
 	
 
 if __name__ == "__main__":
 	with open('../cfg/config.json', 'r') as f:
 		config = json.load(f)
 
-	queries_folder = os.path.abspath(config['raw_data']['queries_folder'])
-	query_path = ['archie.1.src.bmp', 'archie.2.src.bmp', 'archie.3.src.bmp', 'archie.4.src.bmp']	
-	query_path = [os.path.join(queries_folder, pth) for pth in query_path]
-	masks_path = ['archie.1.mask.bmp', 'archie.2.mask.bmp', 'archie.3.mask.bmp', 'archie.4.mask.bmp']	
-	masks_path = [os.path.join(queries_folder, pth) for pth in masks_path]
+	names = ['archie', 'billy', 'ian', 'janine', 'peggy', 'phil', 'ryan', 'shirley']
+	for name in names:
+		queries_folder = os.path.abspath(config['raw_data']['queries_folder'])
+		query_path = [name + '.1.src.bmp', name + '.2.src.bmp', name + '.3.src.bmp', name + '.4.src.bmp']	
+		query_path = [os.path.join(queries_folder, pth) for pth in query_path]
+		masks_path = [name + '.1.mask.bmp', name + '.2.mask.bmp', name + '.3.mask.bmp', name + '.4.mask.bmp']	
+		masks_path = [os.path.join(queries_folder, pth) for pth in masks_path]
 
-	detect_face_by_path(query_path, masks_path)
+		detect_face_by_path(query_path, masks_path)
