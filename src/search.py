@@ -33,6 +33,7 @@ class VisualizeTools():
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()
 
+
 class SearchEngine(object):
     def __init__(self, visualize_tool):
         vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
@@ -47,6 +48,7 @@ class SearchEngine(object):
         self.faces_folder = os.path.abspath(self.cfg["processed_data"]["faces_folder"])
         self.result_images_folder = os.path.abspath(self.cfg["result"]["result_images"])
         self.visualize_tool = visualize_tool
+
 
     def view_result(self, query, result):
         for i,shot in enumerate(result):           
@@ -69,6 +71,7 @@ class SearchEngine(object):
             save_path = os.path.join(self.result_images_folder, file_name)
             self.visualize_tool.visualize_images_matrix(imgs, shot_name, save_path=save_path)
 
+
     def remove_bad_faces(self, query):        
         n = len(query)
         confs = [0] * n
@@ -86,6 +89,7 @@ class SearchEngine(object):
             return query     # In case all faces are "bad" faces, return the same query features        
         return query_final  # Return list of features of "good" faces
 
+
     def form_training_set(self, result, thresh = 0.5):
         X = []
         Y = []
@@ -101,11 +105,11 @@ class SearchEngine(object):
         return (X, Y)
 
 
-
     def fine_tuning(self, training_set):
         X, Y = training_set[0], training_set[1]
-        self.fine_tuned_model = 
+        # self.fine_tuned_model = 
     
+
     def mean_max_similarity(self, query, shot_faces): # mean for query , max for shot
         final_sim = 0;
         shot_faces_with_sim = []        
@@ -130,7 +134,7 @@ class SearchEngine(object):
             shot_faces = list(zip(shot_faces, shot_faces_feat)) # shot faces is a list with elements consist of  (face matrix, face features)
             print("\tShot %s , number of faces : %d" % (shot.split(".")[0], len(shot_faces)))            
             sim, shot_faces_with_sim = self.mean_max_similarity(query, shot_faces)
-            result.append((shot, sim, shot_faces_with_sim)) # Result is a list of  elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
+            result.append((shot, sim, shot_faces_with_sim)) # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
 
         result.sort(reverse=True, key= lambda x : x[1])
         top = self.search_cfg["top_samples_for_training"]
@@ -141,7 +145,8 @@ class SearchEngine(object):
 
 
     def stage_2(self, query, training_set):
-        self.fine_tuning
+        # self.fine_tuning
+        pass
 
 
     def stage_3(self, query):

@@ -49,11 +49,11 @@ def KeyframeExtraction(input_path, output_path, sampling_rate=None):
 		ret, frame = cap.read()
 
 		if ret is True:
-		    if (sampling_rate is None) or (index % coef == 0):
+			if (sampling_rate is None) or (index % coef == 0):
 				cv2.imwrite(os.path.join(directory_path, str(label).zfill(5) + '.jpg'), frame)
-			label += 1
+				label += 1
 		else:
-		    break
+			break
 		index += 1
 
 	cap.release()
@@ -64,8 +64,10 @@ if __name__ == '__main__':
 	with open("../cfg/config.json", "r") as f:
 		config = json.load(f)
 
-	raw_shot_folder = os.path.abspath(config["raw_data"]["raw_shot_folder"]
-	frames_folder = os.path.abspath(config["processed_data"]["frames_folder"]	
+	raw_shot_folder = os.path.abspath(config["raw_data"]["raw_shots_folder"])
+	frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
 
 	for shot in glob.glob(os.path.join(raw_shot_folder, '*.mp4')):
-		KeyframeExtraction(shot, frames_folder, 5)	
+		save_dir = os.path.join(frames_folder, os.path.basename(shot).split('.')[0])
+		if not os.path.isdir(save_dir): 
+			KeyframeExtraction(shot, frames_folder, 5)	

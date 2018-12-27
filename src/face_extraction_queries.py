@@ -37,6 +37,7 @@ def detect_face_by_image(query, masks):
 			ones_mask = np.ones((im_height, im_width), dtype=np.uint8)
 			res = cv2.bitwise_and(mask, bbox_mask, mask=ones_mask)	
 
+			# Compute the overlapping area
 			overlap = np.count_nonzero(res)
 
 			if overlap > best_overlap:
@@ -62,10 +63,10 @@ def detect_face_by_path(query_path, masks_path):
 	query = [cv2.imread(im_path) for im_path in query_path]
 	masks = [cv2.imread(mask_path, 0) for mask_path in masks_path]
 	ret, result = detect_face_by_image(query, masks)
-	for res, path in zip(result, query_path):
-		im_name = path.split('/')[-1]	
-		res = cv2.cvtColor(res, cv2.COLOR_RGB2BGR)
-		cv2.imwrite('./test_output/detect_result/' + im_name, res)
+	# for res, path in zip(result, query_path):
+		# im_name = path.split('/')[-1]	
+		# res = cv2.cvtColor(res, cv2.COLOR_RGB2BGR)
+		# cv2.imwrite('./test_output/detect_result/' + im_name, res)
 	return zip(ret, query_path, masks_path)
 	
 
