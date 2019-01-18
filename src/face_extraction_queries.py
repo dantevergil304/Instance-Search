@@ -18,7 +18,7 @@ def detect_face_by_image(query, masks):
     Returns:
     - ret: list of detected faces in query. For each image in query,
     we just take the best face. In case no face was detected, skip.
-    - result: list of result images after applying mask, having the
+    - result: list of resulting images after applying mask, having the
     same size as ret.
     '''
     # TF session
@@ -107,3 +107,4 @@ if __name__ == "__main__":
         masks_path = [os.path.join(queries_folder, pth) for pth in masks_path]
 
         detect_face_by_path(query_path, masks_path)
+:q
