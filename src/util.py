@@ -40,7 +40,7 @@ def calculate_average_faces_sim(record):
     between 'query face i' and 'shot face j')
 
     Returns:
-    - faces_data: a list of tuple (shot_id, mean_sim)
+    - faces_data: a list of tuple ((frame file, bb), mean_sim)
     '''
     faces_data = []
     faces_matrix = record[2]
