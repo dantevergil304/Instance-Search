@@ -14,6 +14,11 @@
 	    "queries_face_folder" : "../data/processed_data/faces/queries"
     },
 
+    "training_data":{
+        "data" : "../training_data/data/",
+        "visualized_data": "../training_data/visualized_training_data/"
+    },
+
     "models" : {
         "SVM_folder" : "../models/SVM/",
         "VGG_folder" : {
@@ -24,11 +29,17 @@
 
     "features" : {
         "VGG_default_features" : "../features/VGG_Face_default/",
-        "VGG_fine_tuned_features" : "../features/VGG_Face_fine_tuned"
+        "VGG_fine_tuned_features" : "../features/VGG_Face_fine_tuned/"
     },
 
     "3rd_party" : {
-        "MTCNN" : "../3rd_party/ServiceMTCNN",
-	"Image_Super_Resolution" : "../3rd_party/Image-Super-Resolution"
-    }
+        "MTCNN" : "../3rd_party/ServiceMTCNN/",
+	"Image_Super_Resolution" : "../3rd_party/Image-Super-Resolution/"
+    },
+
+    "result" : {
+        "stage_1": "../result/result_without_fine_tune_images/",
+        "stage_2": "../result/result_with_fine_tune_images/",
+	"stage_3": "../result/result_with_svm_images/"
+    }    
 }
