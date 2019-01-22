@@ -1,4 +1,3 @@
-from ServiceMTCNN import detect_face as lib
 import tensorflow as tf
 import numpy as np
 import pickle
@@ -7,12 +6,14 @@ import cv2
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join('..', '3rd_party')))
+from ServiceMTCNN import detect_face as lib
 
 
 def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder):
     '''
-    Extract faces for all shots in input_frames_folder. Each shot will be
-    represented by a list whose element is a tuple (frame_name, (x1, y1, x2, y2)).
+    Extract faces for all shots in input_frames_folder. Each shot
+    will be saved on disk and represented by a list whose element
+    is a tuple (frame_name, (x1, y1, x2, y2)).
 
     Parameter:
     - input_frames_folder: path to folder of shot folders, each shot folder

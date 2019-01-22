@@ -107,4 +107,3 @@ if __name__ == "__main__":
         masks_path = [os.path.join(queries_folder, pth) for pth in masks_path]
 
         detect_face_by_path(query_path, masks_path)
-:q
