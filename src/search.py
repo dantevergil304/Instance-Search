@@ -226,12 +226,12 @@ class SearchEngine(object):
             if isStage3:
                 arr = [self.svm_clf.decision_function(
                     face_feat) for face_feat in shot_faces_feat]
-                # clf_score = max([self.svm_clf.predict_proba(
-                #    face_feat)[0] for face_feat in shot_faces_feat])
-                clf_score = max(arr)
+                decision_score = max(arr)
+                exact_distance = decision_score / \
+                    np.linalg.norm(self.svm_clf.coef_)
 
                 cosine_similarity.append(sim)
-                classification_score.append(clf_score)
+                classification_score.append(exact_distance)
 
             # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
             result.append((shot_id, sim, frames_with_bb_sim))
