@@ -10,6 +10,7 @@ from vgg_finetune import fine_tune, extract_face_features
 from visualization import VisualizeTools
 from keras.models import load_model
 from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity
+from scipy import stats
 
 import numpy as np
 import json
@@ -162,7 +163,7 @@ class SearchEngine(object):
         data = data[:pos + pos + pos]
         X = [a[0] for a in data]
         Y = [a[1] for a in data]
-        with open("../training_data/archie_thresh_0.6.pkl", "wb") as f:
+        with open("../training_data/" + self.query_name + "_new_dataset.pkl", "wb") as f:
             pickle.dump([X, Y], f)
         return [X, Y]
 
@@ -201,6 +202,9 @@ class SearchEngine(object):
         shot_feature_files = [(file, os.path.join(feature_folder, file))
                               for file in os.listdir(feature_folder)]
 
+        cosine_similarity = []
+        classification_score = []
+
         print('[+] Start to compute the similarity between person and each shot\n')
         for idx, shot_feature_file in enumerate(shot_feature_files):
             shot_id = shot_feature_file[0].split(".")[0]
@@ -225,11 +229,19 @@ class SearchEngine(object):
                 # clf_score = max([self.svm_clf.predict_proba(
                 #    face_feat)[0] for face_feat in shot_faces_feat])
                 clf_score = max(arr)
-                sim += clf_score
+
+                cosine_similarity.append(sim)
+                classification_score.append(clf_score)
 
             # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
             result.append((shot_id, sim, frames_with_bb_sim))
         print('[+] Finished computing similarity for all shots')
+
+        if isStage3:
+            person_similarity = stats.zscore(
+                cosine_similarity) + stats.zscore(classification_score)
+            shot_id, _, frames_with_bb_sim = zip(*result)
+            result = list(zip(shot_id, person_similarity, frames_with_bb_sim))
 
         result.sort(reverse=True, key=lambda x: x[1])
         result = result[:top]
@@ -266,24 +278,24 @@ class SearchEngine(object):
             query_faces.append((face[0], feature))
 
         K.clear_session()
-        return self.stage_1(query_faces, os.path.join(self.fine_tune_feature_folder, self.query_name), 50)
+        return self.stage_1(query_faces, os.path.join(self.fine_tune_feature_folder, self.query_name), 200)
 
     def stage_3(self, query, training_set=None):
         from sklearn.svm import SVC
 
-        # X, y = training_set[0], training_set[1]
+        X, y = training_set[0], training_set[1]
 
-        # print('[+] Begin Training SVM')
-        # self.svm_clf = SVC(probability=True, verbose=True,
-        #           random_state=42, kernel='linear')
-        # self.svm_clf.fit(X, y)
-        # print('[+] Fininshed Training SVM')
+        print('[+] Begin Training SVM')
+        self.svm_clf = SVC(probability=True, verbose=True,
+                           random_state=42, kernel='linear')
+        self.svm_clf.fit(X, y)
+        print('[+] Fininshed Training SVM')
 
-        # with open(os.path.join(self.svm_model_path, 'archie.pkl'), 'wb') as f:
-        #     pickle.dump(clf, f)
+        with open(os.path.join(self.svm_model_path, 'archie.pkl'), 'wb') as f:
+            pickle.dump(self.svm_clf, f)
 
-        with open(os.path.join(self.svm_model_path, 'archie.pkl'), 'rb') as f:
-            self.svm_clf = pickle.load(f)
+        # with open(os.path.join(self.svm_model_path, 'archie.pkl'), 'rb') as f:
+        #     self.svm_clf = pickle.load(f)
 
         query_faces = []
         fine_tune_vgg = load_model(os.path.join(
@@ -295,7 +307,7 @@ class SearchEngine(object):
             feature = extract_feature_from_face(feature_extractor, face[0][0])
             query_faces.append((face[0], feature))
 
-        return self.stage_1(query_faces, os.path.join(self.fine_tune_feature_folder, self.query_name), 50, isStage3=True)
+        return self.stage_1(query_faces, os.path.join(self.fine_tune_feature_folder, self.query_name), 200, isStage3=True)
 
     def searching(self, query, mask):
         start = time.time()
@@ -325,18 +337,20 @@ class SearchEngine(object):
         query_faces = self.remove_bad_faces(faces_features)
         print("[+] Removed bad faces from query")
         # This is for visualization the query after remove bad faces
-        # shift = len(query_faces_sr) - len(query_faces)
-        # temp = [query_face[0][0] for query_face in query_faces]
-        # for i in range(shift):
-        #     temp.append(np.zeros((341, 192, 3), dtype=np.uint8))
-        # self.visualize_tool.visualize_images(
-        #    [query_faces_sr, temp], "Remove bad faces")
+        shift = len(query_faces_sr) - len(query_faces)
+        temp = [query_face[0][0] for query_face in query_faces]
+        for i in range(shift):
+            temp.append(np.zeros((341, 192, 3), dtype=np.uint8))
+        img_faces = [img[0] for img in query_faces_sr]
+        self.visualize_tool.visualize_images(
+            [img_faces, temp], "Remove bad faces", save_path="../result/" + self.query_name + "_rm_bad_faces.jpg")
         #####
+        """
         print("\n==============================================================================")
         print("\n                       [+] Stage 1 of searching:\n")
         print(
             "==============================================================================")
-        result = self.stage_1(query_faces, self.default_feature_folder, 20)
+        result = self.stage_1(query_faces, self.default_feature_folder, 100)
         end = time.time()
         print("[+] Execution time of stage 1", end-start, " second")
         self.visualize_tool.view_result(
@@ -345,7 +359,7 @@ class SearchEngine(object):
         print("\n                       [+] Stage 2 of searching:\n")
         print(
             "==============================================================================")
-        training_set = self.form_training_set(result)
+        training_set = self.form_training_set(result)    
         result = self.stage_2(query_faces, training_set)
         self.visualize_tool.view_result(
             result, self.cfg["result"]["stage_2"], self.query_name)
@@ -354,11 +368,11 @@ class SearchEngine(object):
         print("\n                       [+] Stage 3 of searching:\n")
         print(
             "==============================================================================")
-        # svm_training_set = self.form_SVM_training_set(result)
-        svm_training_set = None
+        svm_training_set = self.form_SVM_training_set(result)
         result = self.stage_3(query_faces, svm_training_set)
         self.visualize_tool.view_result(
             result, self.cfg["result"]["stage_3"], self.query_name)
+        """
 
 
 if __name__ == '__main__':
@@ -366,7 +380,7 @@ if __name__ == '__main__':
     query_folder = "../data/raw_data/queries/"
     names = ["archie", "billy", "ian", "janine",
              "peggy", "phil", "ryan", "shirley"]
-    name = names[0]
+    name = names[2]
     query = [
         name + ".1.src.bmp",
         name + ".2.src.bmp",
@@ -390,7 +404,8 @@ if __name__ == '__main__':
     imgs_v = [cv2.imread(q) for q in query]
     masks_v = [cv2.imread(m) for m in masks]
     visualize_tool = VisualizeTools()
-    #visualize_tool.visualize_images([imgs_v, masks_v], "Query : " + name)
+    visualize_tool.visualize_images(
+        [imgs_v, masks_v], "Query : " + name, save_path="../result/" + name + "_query.jpg")
     search_eng = SearchEngine(visualize_tool, query_name=name)
     print("[+] Initialized searh engine")
     search_eng.searching(query, masks)
