@@ -3,6 +3,7 @@ import os
 import errno
 import glob
 import json
+import time
 
 
 def getTotalFrame(path):
@@ -51,7 +52,7 @@ def KeyframeExtraction(input_path, output_path, sampling_rate=None):
         if ret is True:
             if (sampling_rate is None) or (index % coef == 0):
                 cv2.imwrite(os.path.join(directory_path, str(
-                    label).zfill(5) + '.jpg'), frame)
+                    label).zfill(5) + '.jpg'), frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
                 label += 1
         else:
             break
@@ -68,8 +69,31 @@ if __name__ == '__main__':
     raw_shot_folder = os.path.abspath(config["raw_data"]["raw_shots_folder"])
     frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
 
+    total_time = 0
+    extracted_shot = 0
     for shot in glob.glob(os.path.join(raw_shot_folder, '*.mp4')):
+        # video_id = os.path.basename(shot).split('_')[0][4:]
+        # if video_id != '0':
+        #     continue
+
+        # Check if there is no free space on hard disk
+        statvfs = os.statvfs('/')
+        if statvfs.f_frsize * statvfs.f_bavail / (10**6 * 1024) < 5:
+            print(
+                '\033[93mWarning: Stop process. There is no free space left!\033[0m')
+            break
+
         save_dir = os.path.join(
             frames_folder, os.path.basename(shot).split('.')[0])
         if not os.path.isdir(save_dir):
-            KeyframeExtraction(shot, frames_folder, 5)
+            begin = time.time()
+            KeyframeExtraction(shot, frames_folder, 3)
+            end = time.time()
+
+            total_time += (end - begin)
+
+            extracted_shot += 1
+        print('[+] Number of extracted shots: %d' % (extracted_shot))
+
+    print('Total Elapsed Time: %f minutes and %d seconds' % (
+        total_time/60, total_time % 60))

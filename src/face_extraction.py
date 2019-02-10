@@ -5,11 +5,13 @@ import json
 import cv2
 import sys
 import os
+import time
+
 sys.path.append(os.path.abspath(os.path.join('..', '3rd_party')))
 from ServiceMTCNN import detect_face as lib
 
 
-def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder):
+def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, output_landmarks_folder):
     '''
     Extract faces for all shots in input_frames_folder. Each shot
     will be saved on disk and represented by a list whose element
@@ -20,6 +22,7 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder):
     contains many frames.
     - output_faces_folder: path for saving face
     '''
+    begin = time.time()
     sess = tf.Session()
     pnet, rnet, onet = lib.create_mtcnn(sess, None)
     minsize = 20
@@ -33,12 +36,22 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder):
                       for folder in os.listdir(input_frames_folder)]
     #frames_folders = [("shot230_297", os.path.join(input_frames_folder, "shot230_297"))]
     for i, frames_folder in enumerate(frames_folders):
+        # Check if there is no free space on hard disk
+        statvfs = os.statvfs('/')
+        if statvfs.f_frsize * statvfs.f_bavail / (10**6 * 1024) < 5:
+            print(
+                '\033[93mWarning: Stop process. There is no free space left!\033[0m')
+            break
+
+        # MAIN
         shot_id, frames_folder_path = frames_folder[0], frames_folder[1]
-        save_path = os.path.join(output_faces_folder, shot_id + ".pickle")
+        face_save_path = os.path.join(output_faces_folder, shot_id + ".pickle")
+        landmark_save_path = os.path.join(
+            output_landmarks_folder, shot_id + ".pickle")
         print("\t\t[+] id : %d | Accessed frames folder of %s path : %s" %
               (i, shot_id, frames_folder_path))
 
-        if os.path.exists(save_path):
+        if os.path.exists(face_save_path):
             print("\t\t" + shot_id + '.pickle has already existed')
             continue
 
@@ -52,7 +65,7 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder):
             img = cv2.imread(frame_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             print("\t\t[+] Load frame %s" % (frame_id))
-            boxes, _ = lib.detect_face(
+            boxes, landmarks = lib.detect_face(
                 img, minsize, pnet, rnet, onet, threshold, factor)
             if len(boxes) > 0:
                 print("\t\t[+] Detected faces in frame %s" % (frame_id))
@@ -79,11 +92,20 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder):
                 faces_bbs.append(face)
 
         if len(faces_bbs) > 0:
-            with open(save_path, 'wb') as f:
+            with open(face_save_path, 'wb') as f:
                 pickle.dump(faces_bbs, f)
+            with open(landmark_save_path, 'wb') as f:
+                pickle.dump(landmarks, f)
         print(faces_bbs)
-        print("\t\t[+] Saved faces to %s" % (save_path))
+
+        print("\t\t\033[93m[+] Saved faces to %s" % (face_save_path))
+        print("\t\t[+] Saved landmarks to %s\033[0m" % (landmark_save_path))
+
+    end = time.time()
+    elapsed_time = end - begin
     print("\tNumber of new file : ", num_of_new_files)
+    print("\tTotal elapsed time: %f minutes and %d seconds" %
+          (elapsed_time / 60, elapsed_time % 60))
 
 
 if __name__ == "__main__":
@@ -93,4 +115,7 @@ if __name__ == "__main__":
 
     frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
     faces_folder = os.path.abspath(config["processed_data"]["faces_folder"])
-    extract_faces_from_frames_folder(frames_folder, faces_folder)
+    landmarks_folder = os.path.abspath(
+        config["processed_data"]["landmarks_folder"])
+    extract_faces_from_frames_folder(
+        frames_folder, faces_folder, landmarks_folder)
