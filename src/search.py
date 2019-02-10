@@ -11,6 +11,8 @@ from visualization import VisualizeTools
 from keras.models import load_model
 from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity
 from scipy import stats
+from PIL import Image
+from poseEstimate import getFaceRotationAngles
 
 import numpy as np
 import json
@@ -35,6 +37,8 @@ class SearchEngine(object):
             self.cfg["features"]["VGG_default_features"])
         self.faces_folder = os.path.abspath(
             self.cfg["processed_data"]["faces_folder"])
+        self.landmarks_folder = os.path.abspath(
+            self.cfg["processed_data"]["landmarks_folder"])
         self.frames_folder = os.path.abspath(
             self.cfg["processed_data"]["frames_folder"])
         self.fine_tune_feature_folder = os.path.abspath(
@@ -150,10 +154,47 @@ class SearchEngine(object):
         neg = 0
         print("[+] Forming training set...")
         for record in result:
+            shot_id = record[0]
+            with open(os.path.join(self.faces_folder, shot_id), 'rb') as f:
+                faces = pickle.load(f)
+            with open(os.path.join(self.landmarks_folder, shot_id), 'rb') as f:
+                landmarks = pickle.load(f)
+
+            # Get rotation vector of  each face in current shot
+            rotation_vecs = []
+            for (frame_id, _), landmark in zip(faces, landmarks):
+                img = Image.open(os.path.join(
+                    self.frames_folder, shot_id, frame_id))
+                width, height = img.size
+
+                image_points = []
+                for i in range(int(len(landmark)/2.)):
+                    x, y = int(landmark[i]), int(landmark[i+5])
+                    image_points.append((x, y))
+                image_points = np.array(image_points, dtype='double')
+
+                rotation_vecs.append(getFaceRotationAngles(
+                    image_points, (height, width)))
+
+            # Choose positive and negative sample
             x_sample, y_sample, pos_, neg_ = self.split_by_average_comparision(
                 record, thresh=0.6)
-            X.extend(x_sample)
-            Y.extend(y_sample)
+
+            # Remove faces with bad orientation
+            new_x_sample = []
+            new_y_sample = []
+            for idx, (x_smp, y_smp) in enumerate(zip(x_sample, y_sample)):
+                if rotation_vecs[idx][0] < 90 and rotation_vecs[idx][1] < 20:
+                    new_x_sample.append(x_smp)
+                    new_y_sample.append(y_smp)
+                else:
+                    if y_smp == 1:
+                        pos_ -= 1
+                    else:
+                        neg_ -= 1
+
+            X.extend(new_x_sample)
+            Y.extend(new_y_sample)
             pos += pos_
             neg += neg_
         print("[+] Finished, There are %d positive sample and %d negative sample in top %d" %

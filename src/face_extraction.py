@@ -57,6 +57,7 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
 
         num_of_new_files += 1
         faces_bbs = list()
+        faces_landmarks = list()
         frames = [(file, os.path.join(frames_folder_path, file))
                   for file in os.listdir(frames_folder_path)]
 
@@ -91,11 +92,14 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
                 # cv2.destroyAllWindows()
                 faces_bbs.append(face)
 
+            for landmark in np.transpose(landmarks):
+                faces_landmarks.append(landmark)
+
         if len(faces_bbs) > 0:
             with open(face_save_path, 'wb') as f:
                 pickle.dump(faces_bbs, f)
             with open(landmark_save_path, 'wb') as f:
-                pickle.dump(landmarks, f)
+                pickle.dump(faces_landmarks, f)
         print(faces_bbs)
 
         print("\t\t\033[93m[+] Saved faces to %s" % (face_save_path))
