@@ -33,6 +33,7 @@ class SearchEngine(object):
         with open("../cfg/search_config.json", "r") as f:
             self.search_cfg = json.load(f)
 
+        #Set up folder path
         self.default_feature_folder = os.path.abspath(
             self.cfg["features"]["VGG_default_features"])
         self.faces_folder = os.path.abspath(
@@ -45,7 +46,8 @@ class SearchEngine(object):
             self.cfg["features"]["VGG_fine_tuned_features"])
         self.fine_tune_model_path = os.path.abspath(
             self.cfg["models"]["VGG_folder"]["VGG_fine_tuned_folder"])
-        self.svm_model_path = os.path.abspath(self.cfg["models"]["SVM_folder"])
+        self.svm_model_path = os.path.abspath(
+            self.cfg["models"]["SVM_folder"])
 
         self.query_name = query_name
         self.visualize_tool = visualize_tool
@@ -119,33 +121,6 @@ class SearchEngine(object):
                 Y.append(0)
                 neg += 1
         return X, Y, pos, neg
-
-    # def split_by_thresh_comparision(self, record, thresh=0.6):
-    #     X = []
-    #     Y = []
-    #     pos, neg = 0, 0
-    #     shot_id = record[0]
-    #     mean_sim = record[1]
-    #     print("\t\tNumber of faces in %s : %d" % (shot_id, len(record[2][0])))
-    #     data = record[2]
-    #     pos_sample = set()
-    #     neg_sample = set()
-    #     for row in data:
-    #         for face_data in row:
-    #             if face_data[1] >= thresh:
-    #                 x_sample.add(face_data)
-    #     for face_data in x_sample:
-    #         img = cv2.imread(os.path.join(self.frames_folder, shot_id, face_data[0][0]))
-    #         x1, y1, x2, y2 = face_data[0][1]
-    #         face = img[y1 : y2, x1 : x2]
-    #         X.append(face)
-    #         if face_data[1] >= thresh:
-    #             Y.append(1)
-    #             pos +=1
-    #         else:
-    #             Y.append(0)
-    #             neg += 1
-    #         return X, Y, pos, neg
 
     def form_training_set(self, result):
         X = []
@@ -364,7 +339,6 @@ class SearchEngine(object):
                           for face in query_faces]
         print("[+] Applied super resolution to query")
         #self.visualize_tool.visualize_images([query_faces, query_faces_sr],"Apply super resolution")
-
         #####
 
         faces_features = []

@@ -34,7 +34,8 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
     num_of_new_files = 0
     frames_folders = [(folder, os.path.join(input_frames_folder, folder))
                       for folder in os.listdir(input_frames_folder)]
-    #frames_folders = [("shot230_297", os.path.join(input_frames_folder, "shot230_297"))]
+    # frames_folders = [("shot168_555", os.path.join(
+    #     input_frames_folder, "shot168_555"))]
     for i, frames_folder in enumerate(frames_folders):
         # Check if there is no free space on hard disk
         statvfs = os.statvfs('/')
@@ -100,10 +101,11 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
                 pickle.dump(faces_bbs, f)
             with open(landmark_save_path, 'wb') as f:
                 pickle.dump(faces_landmarks, f)
-        print(faces_bbs)
+            print(faces_bbs)
 
-        print("\t\t\033[93m[+] Saved faces to %s" % (face_save_path))
-        print("\t\t[+] Saved landmarks to %s\033[0m" % (landmark_save_path))
+            print("\t\t\033[93m[+] Saved faces to %s" % (face_save_path))
+            print("\t\t[+] Saved landmarks to %s\033[0m" %
+                  (landmark_save_path))
 
     end = time.time()
     elapsed_time = end - begin

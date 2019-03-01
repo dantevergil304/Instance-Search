@@ -7,6 +7,7 @@ import os
 import pickle
 import numpy as np
 import cv2
+import time
 
 
 def extract_feature_from_face(model, face):
@@ -40,11 +41,20 @@ def extract_database_faces_features(model, frames_folder, faces_folder, feature_
     are represented by a list whose element is a tuple (frame_name, (x1, y1, x2, y2))
     - feature_folder: path to folder used for saving face features
     '''
-    i = 0
+    begin = time.time()
+    num_of_new_files = 0
     faces_files = [(file, os.path.join(faces_folder, file))
                    for file in os.listdir(faces_folder)]
 
     for faces_file in faces_files:
+        # Check if there is no free space on hard disk
+        statvfs = os.statvfs('/')
+        if statvfs.f_frsize * statvfs.f_bavail / (10**6 * 1024) < 5:
+            print(
+                '\033[93mWarning: Stop process. There is no free space left!\033[0m')
+            break
+
+        # MAIN
         file_name = faces_file[0]
         file_path = faces_file[1]
         shot = file_name.split('.')[0]
@@ -56,8 +66,9 @@ def extract_database_faces_features(model, frames_folder, faces_folder, feature_
             print("\t\t" + file_name + ' has already existed')
             continue
 
-        print("[+] id % d Accessed faces from %s" % (i + 1, shot))
-        i = i + 1
+        print("[+] id %d: Accessed faces from %s" %
+              (num_of_new_files + 1, shot))
+        num_of_new_files = num_of_new_files + 1
 
         with open(file_path, "rb") as f:
             faces_data = pickle.load(f)
@@ -69,7 +80,7 @@ def extract_database_faces_features(model, frames_folder, faces_folder, feature_
             x1, y1, x2, y2 = face_data[1]
             frame_img = cv2.imread(os.path.join(frames_folder, shot, frame_id))
             face_img = frame_img[y1: y2, x1: x2]
-            #cv2.imshow(frame_id, face_img)
+            # cv2.imshow(frame_id, face_img)
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
             features_v.append(extract_feature_from_face(model, face_img))
@@ -77,6 +88,12 @@ def extract_database_faces_features(model, frames_folder, faces_folder, feature_
         with open(save_path, "wb") as f:
             pickle.dump(features_v, f)
         print("\t\t[+] Saved extracted features to : %s \n" % (save_path))
+
+    end = time.time()
+    elapsed_time = end - begin
+    print("\tNumber of new file : ", num_of_new_files)
+    print("\tTotal elapsed time: %f minutes and %d seconds" %
+          (elapsed_time / 60, elapsed_time % 60))
 
 
 if __name__ == '__main__':
