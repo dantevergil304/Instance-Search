@@ -52,13 +52,13 @@ def getFaceRotationMatrix(image_points, image_size):
     )
 
     dist_coeffs = np.zeros((4, 1))  # Assuming no lens distortion
-    _, rotation_vector, _ = cv2.solvePnP(model_points,
-                                         image_points, camera_matrix,
-                                         dist_coeffs,
-                                         flags=cv2.cv2.SOLVEPNP_ITERATIVE)
+    _, rotation_vector, translation_vector = cv2.solvePnP(model_points,
+                                                          image_points, camera_matrix,
+                                                          dist_coeffs,
+                                                          flags=cv2.cv2.SOLVEPNP_ITERATIVE)
 
     rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
-    return rotation_matrix
+    return rotation_matrix, translation_vector
 
 
 def rmat2agl(r):
@@ -86,7 +86,11 @@ def rmat2agl(r):
 
 
 def getFaceRotationAngles(image_points, image_size):
-    return rmat2agl(getFaceRotationMatrix(image_points, image_size))
+    # return rmat2agl(getFaceRotationMatrix(image_points, image_size)[0])
+    rmat, tvec = getFaceRotationMatrix(image_points, image_size)
+    projmat = np.concatenate((rmat, tvec), axis=1)
+    _, _, _, _, _, _, eulerAngles = cv2.decomposeProjectionMatrix(projmat)
+    return np.squeeze(eulerAngles)
 
 
 if __name__ == '__main__':

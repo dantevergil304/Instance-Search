@@ -1,10 +1,10 @@
-for i in {0..243}
+for i in {0..244}
 do
 	echo "[+] Processing video$i\n"
 	mkdir ~/video$i
 
 	echo "\tStart getting all frames of video$i...\n"
-	find ~/Instance_Search/data/processed_data/frames/ -name "shot${i}_*" -exec cp -r {} ~/video$i \;
+	find . -name "~/Instance_Search/data/processed_data/frames/shot$i_*" -exec cp -r {} ~/video$i \;
 
 	echo "\tStart Compressing video$i directory...\n"
 	zip -r ~/video$i.zip ~/video$i

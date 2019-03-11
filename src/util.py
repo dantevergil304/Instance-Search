@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 
 def mean_max_similarity(query, shot_faces):
@@ -60,3 +61,20 @@ def cosine_similarity(vector_a, vector_b):
     l2_vector_a = np.linalg.norm(vector_a) + 0.001
     l2_vector_b = np.linalg.norm(vector_b) + 0.001
     return np.dot((vector_a / l2_vector_a), (vector_b.T / l2_vector_b))
+
+
+def write_result_to_file(query_id, result, file_path):
+    with open(file_path, 'w') as f:
+        for i, record in enumerate(result):
+            f.write(str(query_id) + ' Q0 ' + record[0] + ' ' + str(
+                i + 1) + ' ' + str(record[1][0][0]) + ' STANDARD\n')
+
+
+def write_result(query_id, result, file_path):
+    with open(file_path, 'wb') as f:
+        pickle.dump(result, f)
+
+
+if __name__ == '__main__':
+    result = [['shot239_123', 2], ['shot239_135', 3]]
+    write_result_to_file(1, result, 'test.txt')

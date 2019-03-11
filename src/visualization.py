@@ -4,7 +4,9 @@ import os
 import json
 import random
 import pickle
+import math
 from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity
+
 
 class VisualizeTools():
     def __init__(self):
@@ -16,7 +18,7 @@ class VisualizeTools():
         self.faces_folder = os.path.abspath(
             self.cfg["processed_data"]["faces_folder"])
         self.frames_folder = os.path.abspath(
-            self.cfg["processed_data"]["frames_folder"])        
+            self.cfg["processed_data"]["frames_folder"])
 
     def visualize_images(self, matrix_images, title, save_path=None, size=(341, 192)):
         imgs = []
@@ -55,21 +57,28 @@ class VisualizeTools():
             file_name = "top" + str(i+1) + "_" + \
                 shot_id + "_" + str(record[1][0]) + ".jpg"
             save_path = os.path.join(save_folder, query_name, file_name)
-            self.visualize_images([frames_with_faces], shot_id, save_path=save_path)
-    
-    def view_training_set(self, training_set_path, shape):        
+            self.visualize_images([frames_with_faces],
+                                  shot_id, save_path=save_path)
+
+    def view_training_set(self, training_set_path, shape=None):
         with open(training_set_path, "rb") as f:
             training_set = pickle.load(f)
         training_set = list(zip(training_set[0], training_set[1]))
-        file_name = training_set_path.split("/")[-1].replace(".pkl","")
-        print("[+] Loaded dataset ", file_name)        
-        print("[+]Training set size : ", len(training_set))        
-        rows = [] 
+        file_name = training_set_path.split("/")[-1].replace(".pkl", "")
+        print("[+] Loaded dataset ", file_name)
+        print("[+]Training set size : ", len(training_set))
+
+        if shape is None:
+            no_samples = len(training_set)
+            size = round(math.sqrt(no_samples))
+            shape = (size, size)
+
+        rows = []
         row = []
-        for sample in training_set[100:]:
-            face = cv2.resize(sample[0], (112,112))                        
-            text = str(sample[1])                 
-            font = cv2.FONT_HERSHEY_SIMPLEX            
+        for count, sample in enumerate(training_set):
+            face = cv2.resize(sample[0], (80, 80))
+            text = str(sample[1])
+            font = cv2.FONT_HERSHEY_SIMPLEX
             label = np.zeros(face.shape)
             # get boundary of this text
             textsize = cv2.getTextSize(text, font, 1, 2)[0]
@@ -79,24 +88,34 @@ class VisualizeTools():
             textY = (face.shape[0] + textsize[1]) / 2
 
             # add text centered on image
-            cv2.putText(label, text, (int(textX), int(textY)), font, 1, (255, 255, 255), 2)                 
+            cv2.putText(label, text, (int(textX), int(textY)),
+                        font, 1, (255, 255, 255), 2)
             sample_img = np.hstack((face, label))
-            row.append(sample_img)            
-            if len(row) > shape[1]:
-                print("Length row : ", len(row))                
+            row.append(sample_img)
+
+            if len(row) >= shape[1] or count == no_samples - 1:
+                # print("Length row : ", len(row))
+
+                if len(row) < shape[1]:
+                    for _ in range(shape[1] - len(row)):
+                        row.append(
+                            np.zeros((face.shape[0], face.shape[0] * 2, 3)))
+
                 rows.append(np.hstack(tuple(row)))
                 if len(rows) > shape[0]:
                     break
-                row = []        
-        print("Length rows : ", len(rows))
+                row = []
+        # print("Length rows : ", len(rows))
         img = np.vstack(tuple(rows))
         #cv2.imshow(file_name, img)
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
-        cv2.imwrite(os.path.join(self.cfg["training_data"]["visualized_data"], file_name + "_negative.jpg"), img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        cv2.imwrite(os.path.join(
+            self.cfg["training_data"]["visualized_data"], file_name + ".jpg"), img)
         print("[+] Saved result")
-    
-if __name__=='__main__':
-    training_set_path = "../training_data/data/archie_thresh_0.6.pkl"
+
+
+if __name__ == '__main__':
+    training_set_path = "../data/training_data/9143_PEsolvePnP_dataset.pkl"
     tools = VisualizeTools()
-    tools.view_training_set(training_set_path, (10, 10))
+    tools.view_training_set(training_set_path)
