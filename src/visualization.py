@@ -60,23 +60,29 @@ class VisualizeTools():
             self.visualize_images([frames_with_faces],
                                   shot_id, save_path=save_path)
 
-    def view_training_set(self, training_set_path, shape=None):
+    def view_training_set(self, training_set_path, shape=(40, 40)):
         with open(training_set_path, "rb") as f:
             training_set = pickle.load(f)
         training_set = list(zip(training_set[0], training_set[1]))
         file_name = training_set_path.split("/")[-1].replace(".pkl", "")
+        query_id = file_name[:4]
         print("[+] Loaded dataset ", file_name)
         print("[+]Training set size : ", len(training_set))
 
+        no_samples = len(training_set)
         if shape is None:
-            no_samples = len(training_set)
             size = round(math.sqrt(no_samples))
             shape = (size, size)
 
+        if not os.path.isdir(os.path.join(self.cfg['training_data']['visualized_data'], query_id)):
+            os.mkdir(os.path.join(
+                self.cfg['training_data']['visualized_data'], query_id))
+
         rows = []
         row = []
+        num_img = 0
         for count, sample in enumerate(training_set):
-            face = cv2.resize(sample[0], (80, 80))
+            face = cv2.resize(sample[0], (100, 100))
             text = str(sample[1])
             font = cv2.FONT_HERSHEY_SIMPLEX
             label = np.zeros(face.shape)
@@ -102,17 +108,15 @@ class VisualizeTools():
                             np.zeros((face.shape[0], face.shape[0] * 2, 3)))
 
                 rows.append(np.hstack(tuple(row)))
-                if len(rows) > shape[0]:
-                    break
+                if len(rows) > shape[0] or count == no_samples - 1:
+                    img = np.vstack(tuple(rows))
+                    cv2.imwrite(os.path.join(
+                        self.cfg["training_data"]["visualized_data"], query_id, file_name + '_' + str(num_img) + ".jpg"), img)
+                    num_img += 1
+                    rows = []
+                    if count == no_samples-1:
+                        break
                 row = []
-        # print("Length rows : ", len(rows))
-        img = np.vstack(tuple(rows))
-        #cv2.imshow(file_name, img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        cv2.imwrite(os.path.join(
-            self.cfg["training_data"]["visualized_data"], file_name + ".jpg"), img)
-        print("[+] Saved result")
 
 
 if __name__ == '__main__':

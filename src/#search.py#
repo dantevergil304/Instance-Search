@@ -72,12 +72,10 @@ class SearchEngine(object):
             confs[i] = sum([cosine_similarity(query[i][1], query[j][1])
                             for j in range(n) if i != j])
 
-        if n > 1:
-            for i in range(n):
-                mean = sum([confs[j] for j in range(n) if i != j]) / (n - 1)
-                if confs[i] + 0.05 >= mean:
-                    query_final.append(query[i])
-
+        for i in range(n):
+            mean = sum([confs[j] for j in range(n) if i != j]) / (n - 1)
+            if confs[i] + 0.05 >= mean:
+                query_final.append(query[i])
         if len(query_final) == 0:
             print("[!] ERROR : length of query is zero")
             return query     # In case all faces are "bad" faces, return the same query features
@@ -414,16 +412,13 @@ class SearchEngine(object):
         print("\n                       [+] Stage 1 of searching:\n")
         print(
             "==============================================================================")
-        # Check if result at stage 1 has been saved
-        if not os.path.exists(os.path.join(self.result_path['stage_1'], self.query_name + '.pkl')):
-            result = self.stage_1(
-                query_faces, self.default_feature_folder, 100)
-            end = time.time()
-            print("[+] Execution time of stage 1", end-start, " second")
-            write_result_to_file(self.query_name, result, os.path.join(
-                self.result_path["stage_1"], self.query_name + ".txt"))
-            write_result(self.query_name, result, os.path.join(
-                self.result_path["stage_1"], self.query_name + ".pkl"))
+        # result = self.stage_1(query_faces, self.default_feature_folder, 100)
+        # end = time.time()
+        # print("[+] Execution time of stage 1", end-start, " second")
+        # write_result_to_file(self.query_name, result, os.path.join(
+        #     self.result_path["stage_1"], self.query_name + ".txt"))
+        # write_result(self.query_name, result, os.path.join(
+        #     self.result_path["stage_1"], self.query_name + ".pkl"))
 
         print("\n==============================================================================")
         print("\n                       [+] Stage 2 of searching:\n")
@@ -447,13 +442,14 @@ class SearchEngine(object):
         write_result_to_file(self.query_name, result, os.path.join(self.result_path["stage_3"], self.query_name + ".txt")) 
         """
 
-
-if __name__ == '__main__':
+hjjj
+IFu
+k__NAMEuu__ == '__MAINuuu__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     query_folder = "../data/raw_data/queries/"
-    names = ["9124", "9119", "9116", "9115", "9104", "9138", "9143", "archie", "billy", "ian", "janine",
+    names = ["9104", "9138", "9143", "archie", "billy", "ian", "janine",
              "peggy", "phil", "ryan", "shirley"]
-    name = names[0]
+    name = names[xi21]
     query = [
         name + ".1.src.bmp",
         name + ".2.src.bmp",
