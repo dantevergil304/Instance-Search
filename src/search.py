@@ -7,7 +7,7 @@ from feature_extraction import extract_feature_from_face, extract_database_faces
 from apply_super_resolution import apply_super_res
 from face_extraction_queries import detect_face_by_path
 from vgg_finetune import fine_tune, extract_face_features
-from visualization import VisualizeTools
+from sticher import ImageSticher
 from keras.models import load_model
 from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity, write_result_to_file, write_result
 from scipy import stats
@@ -25,12 +25,12 @@ import glob
 
 
 class SearchEngine(object):
-    def __init__(self, visualize_tool, query_name):
+    def __init__(self, visualize_tool):
         vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
         out = vgg_model.get_layer("fc6").output
         self.default_vgg = Model(vgg_model.input, out)
         with open("../cfg/config.json", "r") as f:
-            self.cfg = json.load(f)
+            self.cfg = json.load(f) 
         with open("../cfg/search_config.json", "r") as f:
             self.search_cfg = json.load(f)
 
@@ -48,11 +48,12 @@ class SearchEngine(object):
         self.fine_tune_model_path = os.path.abspath(
             self.cfg["models"]["VGG_folder"]["VGG_fine_tuned_folder"])
         self.svm_model_path = os.path.abspath(
-            self.cfg["models"]["SVM_folder"])
+            self.cfg['models']["SVM_folder"])
         self.training_data_folder = os.path.abspath(
-            self.cfg['training_data']['data'])
-        self.result_path = self.cfg["result"]
-        self.query_name = query_name
+            self.cfg["training_data"]["data"])
+        self.result_path = self.cfg["config_path"]
+
+        self.query_name = None
         self.visualize_tool = visualize_tool
         self.fine_tune_vgg = None
         self.svm_clf = None
@@ -79,7 +80,7 @@ class SearchEngine(object):
                     query_final.append(query[i])
 
         if len(query_final) == 0:
-            print("[!] ERROR : length of query is zero")
+            print("[!] ERROR : No image in query")
             return query     # In case all faces are "bad" faces, return the same query features
         return query_final  # Return list of features of "good" faces
 
@@ -110,8 +111,6 @@ class SearchEngine(object):
         pos, neg = 0, 0
         shot_id = record[0]
         video_id = shot_id.split('_')[0][4:]
-        #mean_sim = record[1]
-        #print("\tNumber of faces in %s : %d" % (shot_id, len(record[2][0])))
         data = calculate_average_faces_sim(record)
         for face_data in data:
             img = cv2.imread(os.path.join(
@@ -216,16 +215,19 @@ class SearchEngine(object):
         save_path = os.path.join(self.training_data_folder, self.query_name)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
-        training_set_path = os.path.join(save_path, filename + '_dataset.pkl')
+        training_set_path = os.path.join(
+            save_path, filename + '_svm_dataset.pkl')
         with open(training_set_path, "wb") as f:
             pickle.dump([X, Y], f)
         self.visualize_tool.view_training_set(training_set_path)
         return [X, Y]
 
-    def form_SVM_training_set(self, result):
-        X, Y = self.form_training_set(result)
+    def form_SVM_training_set(self, result, thresh=0.7, rmBadFaces=None):
+        X, Y = self.form_training_set(result, thresh, rmBadFaces)
+        filename = os.listdir(os.path.join(
+            self.fine_tune_model_path, self.query_name))[0]
         model_path = os.path.join(
-            self.fine_tune_model_path, self.query_name + '.h5')
+            self.fine_tune_model_path, self.query_name, filename)
 
         print('[+] Extracting face features')
         features = extract_face_features(model_path, X)
@@ -234,7 +236,7 @@ class SearchEngine(object):
         K.clear_session()
         return [features, Y]
 
-    def stage_1(self, query, feature_folder, top=1000, isStage3=False):
+    def stage_1(self, query, feature_folder, isStage3=False):
         ''' 
         Parameters:
         - query: [((face matrix, img query path, binary mask path), feature vector)]
@@ -257,11 +259,9 @@ class SearchEngine(object):
         # shot_feature_files = [(file, os.path.join(feature_folder, file))
         #                      for file in os.listdir(feature_folder)]
         shot_feature_files = [(os.path.basename(path), path) for path in glob.iglob(
-            feature_folder + '/**/*.pickle', recursive=True)]
-        print(len(os.listdir(feature_folder)))
+            feature_folder + '/**/*.pickle', recursive=True)]        
         cosine_similarity = []
-        classification_score = []
-        print(len(shot_feature_files))
+        classification_score = []        
         print('[+] Start to compute the similarity between person and each shot\n')
         for idx, shot_feature_file in enumerate(shot_feature_files):
             shot_id = shot_feature_file[0].split(".")[0]
@@ -290,7 +290,7 @@ class SearchEngine(object):
                     np.linalg.norm(self.svm_clf.coef_)
 
                 cosine_similarity.append(sim)
-                classification_score.append(exact_distance)
+                classification_score.append(np.expand_dims(exact_distance, 0))
 
             # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
             result.append((shot_id, sim, frames_with_bb_sim))
@@ -302,10 +302,9 @@ class SearchEngine(object):
             shot_id, _, frames_with_bb_sim = zip(*result)
             result = list(zip(shot_id, person_similarity, frames_with_bb_sim))
 
-        result.sort(reverse=True, key=lambda x: x[1])
-        result = result[:top]
+        result.sort(reverse=True, key=lambda x: x[1])                
         print("[+] Search completed")
-        return result
+        return result[:1000]
 
     def stage_2(self, query, training_set):
         '''
@@ -315,12 +314,14 @@ class SearchEngine(object):
         '''
         print("[+] Begin stage 2 of searching")
 
-        self.fine_tune_vgg = fine_tune(
-            training_set, model_name=self.query_name)
-        print("[+] Finished fine tuned VGG Face model")
+        # self.fine_tune_vgg = fine_tune(
+        #     training_set, model_name=self.query_name)
+        # print("[+] Finished fine tuned VGG Face model")
 
+        filename = os.listdir(os.path.join(
+            self.fine_tune_model_path, self.query_name))[0]
         self.fine_tune_vgg = load_model(os.path.join(
-            self.fine_tune_model_path, self.query_name + '.h5'))
+            self.fine_tune_model_path, self.query_name, filename))
         print("[+] Loaded VGG fine tuned model")
 
         feature_extractor = Model(
@@ -334,7 +335,6 @@ class SearchEngine(object):
             extract_database_faces_features(
                 feature_extractor, self.frames_folder, self.faces_folder, fine_tune_feature_folder)
             print("[+] Finished extract feature")
-
         query_faces = []
         for face in query:
             # faces_features store extractly like query_faces_sr except with addtional information, feature of query faces
@@ -342,7 +342,7 @@ class SearchEngine(object):
             query_faces.append((face[0], feature))
 
         K.clear_session()
-        return self.stage_1(query_faces, fine_tune_feature_folder, 200)
+        return self.stage_1(query_faces, fine_tune_feature_folder)
 
     def stage_3(self, query, training_set=None):
         from sklearn.svm import SVC
@@ -355,15 +355,17 @@ class SearchEngine(object):
         self.svm_clf.fit(X, y)
         print('[+] Fininshed Training SVM')
 
-        with open(os.path.join(self.svm_model_path, 'archie.pkl'), 'wb') as f:
+        with open(os.path.join(self.svm_model_path, self.query_name, self.query_name + '.pkl'), 'wb') as f:
             pickle.dump(self.svm_clf, f)
 
         # with open(os.path.join(self.svm_model_path, 'archie.pkl'), 'rb') as f:
         #     self.svm_clf = pickle.load(f)
 
         query_faces = []
+        filename = os.listdir(os.path.join(
+            self.fine_tune_model_path, self.query_name))[0]
         fine_tune_vgg = load_model(os.path.join(
-            self.fine_tune_model_path, self.query_name + '.h5'))
+            self.fine_tune_model_path, self.query_name, filename))
         feature_extractor = Model(
             fine_tune_vgg.input, fine_tune_vgg.get_layer('fc6').output)
         for face in query:
@@ -371,9 +373,11 @@ class SearchEngine(object):
             feature = extract_feature_from_face(feature_extractor, face[0][0])
             query_faces.append((face[0], feature))
 
+        K.clear_session()
+
         return self.stage_1(query_faces, os.path.join(self.fine_tune_feature_folder, self.query_name), isStage3=True)
 
-    def searching(self, query, mask):
+    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False):
         start = time.time()
         query_faces = detect_face_by_path(query, mask)
         print("[+] Detected faces from query")
@@ -410,75 +414,96 @@ class SearchEngine(object):
             [img_faces, temp], "Remove bad faces", save_path="../result/" + self.query_name + "_rm_bad_faces.jpg")
         #####
         """
-        print("\n==============================================================================")
-        print("\n                       [+] Stage 1 of searching:\n")
-        print(
-            "==============================================================================")
-        # Check if result at stage 1 has been saved
-        if not os.path.exists(os.path.join(self.result_path['stage_1'], self.query_name + '.pkl')):
-            result = self.stage_1(
-                query_faces, self.default_feature_folder, 100)
-            end = time.time()
-            print("[+] Execution time of stage 1", end-start, " second")
+        if isStage1:
+            print("\n==============================================================================")
+            print("\n                       [+] Stage 1 of searching:\n")
+            print(
+                "==============================================================================")
+            # Check if result at stage 1 has been saved
+            if not os.path.exists(os.path.join(self.result_path['stage_1'], self.query_name + '.pkl')):
+                result = self.stage_1(
+                    query_faces, self.default_feature_folder)
+                end = time.time()
+                print("[+] Execution time of stage 1", end-start, " second")
+                write_result_to_file(self.query_name, result, os.path.join(
+                    self.result_path["stage_1"], self.query_name + ".txt"))
+                write_result(self.query_name, result, os.path.join(
+                    self.result_path["stage_1"], self.query_name + ".pkl"))
+
+        if isStage2:
+            print("\n==============================================================================")
+            print("\n                       [+] Stage 2 of searching:\n")
+            print(
+                "==============================================================================")
+            with open(os.path.join(self.result_path["stage_1"], self.query_name + ".pkl"), 'rb') as f:
+                result = pickle.load(f)
+            training_set = self.form_training_set(
+                result[:100], thresh=0.6, rmBadFaces=self._PEsolvePnP)
+            training_data_filename = os.listdir(os.path.join(
+                self.training_data_folder, self.query_name))[0]
+            with open(os.path.join(self.training_data_folder, self.query_name, training_data_filename), 'rb') as f:
+                training_set = pickle.load(f)
+            result = self.stage_2(query_faces, training_set)
             write_result_to_file(self.query_name, result, os.path.join(
-                self.result_path["stage_1"], self.query_name + ".txt"))
+                self.result_path["stage_2"], self.query_name + ".txt"))
             write_result(self.query_name, result, os.path.join(
-                self.result_path["stage_1"], self.query_name + ".pkl"))
+                self.result_path["stage_2"], self.query_name + ".pkl"))
+        
+        if isStage3:
 
-        print("\n==============================================================================")
-        print("\n                       [+] Stage 2 of searching:\n")
-        print(
-            "==============================================================================")
-        with open(os.path.join(self.result_path["stage_1"], self.query_name + ".pkl"), 'rb') as f:
-            result = pickle.load(f)
-        training_set = self.form_training_set(
-            result, thresh=0.6, rmBadFaces=self._PEsolvePnP)
-        # result = self.stage_2(query_faces, training_set)
-        # write_result_to_file(self.query_name, result, os.path.join(
-        #     self.result_path["stage_2"], self.query_name + ".txt"))
+            print("\n==============================================================================")
+            print("\n                       [+] Stage 3 of searching:\n")
+            print(
+                "==============================================================================")
 
-        """
-        print("\n==============================================================================")
-        print("\n                       [+] Stage 3 of searching:\n")
-        print(
-            "==============================================================================")
-        svm_training_set = self.form_SVM_training_set(result)
-        result = self.stage_3(query_faces, svm_training_set) 
-        write_result_to_file(self.query_name, result, os.path.join(self.result_path["stage_3"], self.query_name + ".txt")) 
-        """
+            with open(os.path.join(self.result_path["stage_2"], self.query_name + ".pkl"), 'rb') as f:
+                result = pickle.load(f)
+            svm_training_set = self.form_SVM_training_set(
+                result[:200], thresh=0.7, rmBadFaces=self._PEsolvePnP)
+            result = self.stage_3(query_faces, svm_training_set)
+            write_result_to_file(self.query_name, result, os.path.join(
+                self.result_path["stage_3"], self.query_name + ".txt"))
+            write_result(self.query_name, result, os.path.join(
+                self.result_path["stage_3"], self.query_name + ".pkl"))
 
 
 if __name__ == '__main__':
+
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
+
     query_folder = "../data/raw_data/queries/"
-    names = ["9124", "9119", "9116", "9115", "9104", "9138", "9143", "archie", "billy", "ian", "janine",
-             "peggy", "phil", "ryan", "shirley"]
-    name = names[0]
-    query = [
-        name + ".1.src.bmp",
-        name + ".2.src.bmp",
-        name + ".3.src.bmp",
-        name + ".4.src.bmp"
-
-    ]
-    masks = [
-        name + ".1.mask.bmp",
-        name + ".2.mask.bmp",
-        name + ".3.mask.bmp",
-        name + ".4.mask.bmp"
-    ]
-
-    query = [os.path.join(query_folder, q) for q in query]
-    masks = [os.path.join(query_folder, m) for m in masks]
-    print("============================================================================\n\n")
-    print()
-    print("                       QUERY CHARACTER : %s\n\n" % (name.upper()))
-    print("============================================================================")
-    imgs_v = [cv2.imread(q) for q in query]
-    masks_v = [cv2.imread(m) for m in masks]
-    visualize_tool = VisualizeTools()
-    visualize_tool.visualize_images(
-        [imgs_v, masks_v], "Query : " + name, save_path="../result/" + name + "_query.jpg")
-    search_eng = SearchEngine(visualize_tool, query_name=name)
+    names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
+    image_sticher = ImageSticher()
+    search_eng = SearchEngine(visualize_tool)
     print("[+] Initialized searh engine")
-    search_eng.searching(query, masks)
+    # name = names[0]
+    for name in names:
+
+        query = [
+            name + ".1.src.bmp",
+            name + ".2.src.bmp",
+            name + ".3.src.bmp",
+            name + ".4.src.bmp"
+
+        ]
+        masks = [
+            name + ".1.mask.bmp",
+            name + ".2.mask.bmp",
+            name + ".3.mask.bmp",
+            name + ".4.mask.bmp"
+        ]
+
+        query = [os.path.join(query_folder, q) for q in query]
+        masks = [os.path.join(query_folder, m) for m in masks]
+        print("============================================================================\n\n")
+        print()
+        print("                       QUERY CHARACTER : %s\n\n" % (name.upper()))
+        print(
+            "============================================================================")
+        imgs_v = [cv2.imread(q) for q in query]
+        masks_v = [cv2.imread(m) for m in masks]
+        search_eng.query_name = name
+        visualize_tool.visualize_images(
+            [imgs_v, masks_v], "Query : " + name, save_path="../result/" + name + "_query.jpg")       
+        search_eng.searching(query, masks)

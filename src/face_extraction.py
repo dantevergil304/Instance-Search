@@ -34,8 +34,7 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
     num_of_new_files = 0
     frames_folders = [(folder, os.path.join(input_frames_folder, folder))
                       for folder in os.listdir(input_frames_folder)]
-    # frames_folders = [("shot168_555", os.path.join(
-    #     input_frames_folder, "shot168_555"))]
+    print(frames_folders)
     for i, frames_folder in enumerate(frames_folders):
         # Check if there is no free space on hard disk
         statvfs = os.statvfs('/')
@@ -75,6 +74,8 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
                 print("\t\t[-] No faces were detected in frame")
 
             for index, box in enumerate(boxes):
+                if box[4] < 0.9:  # remove faces with low confidence
+                    continue
                 x1, y1, x2, y2 = int(box[0]), int(
                     box[1]), int(box[2]), int(box[3])
                 if y1 < 0:
@@ -115,13 +116,28 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
 
 
 if __name__ == "__main__":
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     print("[+] Load config file")
     with open("../cfg/config.json", "r") as f:
         config = json.load(f)
 
-    frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
-    faces_folder = os.path.abspath(config["processed_data"]["faces_folder"])
+    frames_folder = os.path.abspath(
+        config["processed_data"]["5fps_png_frames_folder"])
+    faces_folder = os.path.abspath(
+        config["processed_data"]["5fps_png_faces_folder"])
     landmarks_folder = os.path.abspath(
-        config["processed_data"]["landmarks_folder"])
-    extract_faces_from_frames_folder(
-        frames_folder, faces_folder, landmarks_folder)
+        config["processed_data"]["5fps_png_landmarks_folder"])
+
+    for vidId in range(0, 244):
+        curVidFrameDir = os.path.join(frames_folder, 'video' + str(vidId))
+        curVidFaceDir = os.path.join(faces_folder, 'video' + str(vidId))
+        curVidLandmarkDir = os.path.join(
+            landmarks_folder, 'video' + str(vidId))
+
+        print('Video ID:', vidId)
+        #print('Frames Directory:', curVidFrameDir)
+        #print('Faces Directory:', curVidFaceDir)
+        #print('Landmarks Directory:', curVidFrameDir)
+
+        extract_faces_from_frames_folder(
+            curVidFrameDir, curVidFaceDir, curVidLandmarkDir)

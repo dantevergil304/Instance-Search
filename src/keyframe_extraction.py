@@ -51,8 +51,10 @@ def KeyframeExtraction(input_path, output_path, sampling_rate=None):
 
         if ret is True:
             if (sampling_rate is None) or (index % coef == 0):
+                # cv2.imwrite(os.path.join(directory_path, str(
+                #     label).zfill(5) + '.jpg'), frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
                 cv2.imwrite(os.path.join(directory_path, str(
-                    label).zfill(5) + '.jpg'), frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                    label).zfill(5) + '.png'), frame)
                 label += 1
         else:
             break
@@ -67,14 +69,15 @@ if __name__ == '__main__':
         config = json.load(f)
 
     raw_shot_folder = os.path.abspath(config["raw_data"]["raw_shots_folder"])
-    frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
+    # frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
+    frames_folder = '/storageStudents/K2015/duyld/hieudvm/TestScript/folder_video_226/'
 
     total_time = 0
     extracted_shot = 0
     for shot in glob.glob(os.path.join(raw_shot_folder, '*.mp4')):
-        # video_id = os.path.basename(shot).split('_')[0][4:]
-        # if video_id != '0':
-        #     continue
+        video_id = os.path.basename(shot).split('_')[0][4:]
+        if video_id != '226':
+            continue
 
         # Check if there is no free space on hard disk
         statvfs = os.statvfs('/')
@@ -87,7 +90,7 @@ if __name__ == '__main__':
             frames_folder, os.path.basename(shot).split('.')[0])
         if not os.path.isdir(save_dir):
             begin = time.time()
-            KeyframeExtraction(shot, frames_folder, 3)
+            KeyframeExtraction(shot, frames_folder, 5)
             end = time.time()
 
             total_time += (end - begin)

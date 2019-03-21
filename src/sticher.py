@@ -8,7 +8,7 @@ import math
 from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity
 
 
-class VisualizeTools():
+class ImageSticher():
     def __init__(self):
         with open("../cfg/config.json", "r") as f:
             self.cfg = json.load(f)
@@ -20,7 +20,7 @@ class VisualizeTools():
         self.frames_folder = os.path.abspath(
             self.cfg["processed_data"]["frames_folder"])
 
-    def visualize_images(self, matrix_images, title, save_path=None, size=(341, 192)):
+    def stich(self, matrix_images, title, save_path=None, size=(341, 192)):
         imgs = []
         for row in matrix_images:
             h = np.hstack(tuple([cv2.resize(img, size) for img in row]))
@@ -32,12 +32,10 @@ class VisualizeTools():
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-    def view_result(self, result, save_folder, query_name):
+    def process_result(self, result, save_folder, query_name):
         print("[+] Visualize results")
         for i, record in enumerate(result):
-            shot_id = record[0]
-            print("\tTop %d , Shot %s, Similarity %f" %
-                  (i + 1, shot_id, record[1]))
+            shot_id = record[0]           
             frames = calculate_average_faces_sim(record)
             n = 5 if len(frames) > 5 else len(frames)
             frames = sorted(frames, reverse=True, key=lambda x: x[1])
@@ -48,26 +46,23 @@ class VisualizeTools():
                 img = cv2.imread(os.path.join(
                     self.frames_folder, shot_id, name))
                 x1, y1, x2, y2 = frame[0][1]
-                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                #cv2.imshow("none", img)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
+                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)         
                 frames_with_faces.append(img)
 
             file_name = "top" + str(i+1) + "_" + \
                 shot_id + "_" + str(record[1][0]) + ".jpg"
             save_path = os.path.join(save_folder, query_name, file_name)
-            self.visualize_images([frames_with_faces],
+            self.stich([frames_with_faces],
                                   shot_id, save_path=save_path)
 
-    def view_training_set(self, training_set_path, shape=(40, 40)):
+    def process_training_set(self, training_set_path, shape=(40, 40), save_path):
         with open(training_set_path, "rb") as f:
             training_set = pickle.load(f)
         training_set = list(zip(training_set[0], training_set[1]))
         file_name = training_set_path.split("/")[-1].replace(".pkl", "")
         query_id = file_name[:4]
         print("[+] Loaded dataset ", file_name)
-        print("[+]Training set size : ", len(training_set))
+        print("[+] Training set size : ", len(training_set))
 
         no_samples = len(training_set)
         if shape is None:
@@ -121,5 +116,5 @@ class VisualizeTools():
 
 if __name__ == '__main__':
     training_set_path = "../data/training_data/9143_PEsolvePnP_dataset.pkl"
-    tools = VisualizeTools()
-    tools.view_training_set(training_set_path)
+    tools = ImageSticher()
+    tools.process_training_set(training_set_path)

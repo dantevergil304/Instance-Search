@@ -1,10 +1,10 @@
 #!/bin/bash
-video_list="../../data/raw_data/info/video_list.txt"
+video_list="../../data/raw_data/info/video_226.txt"
 SECONDS=0
 while IFS= read -r video_name 
 do
     
-    file="../../data/raw_data/info/master_shot_reference.txt"
+    file="../../data/raw_data/info/master_shot_226.txt"
     found=false
     echo "Searching $video_name in master_shot_reference.txt ..."
 
@@ -24,8 +24,8 @@ do
 	    found=true
 	fi
 
-	#name="../../data/raw_data/videos/$1"
-	name="/home/hieudvm/videos/$1"
+	name="../../data/raw_data/videos/$1"
+	#name="/home/hieudvm/videos/$1"
 	start_time="$3"
 	end_time="$4"
 	output="../../data/raw_data/shots/$2.mp4"
