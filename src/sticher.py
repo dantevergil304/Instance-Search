@@ -27,35 +27,47 @@ class ImageSticher():
             imgs.append(h)
         img = np.vstack(tuple(imgs))
         if save_path:
+            print("Save %s image to %s" % (title, save_path))
             cv2.imwrite(save_path, img)
         #cv2.imshow(title, img)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-    def process_result(self, result, save_folder, query_name):
+    def process_result(self, result, save_folder):
+        result = result[:20]
         print("[+] Visualize results")
         for i, record in enumerate(result):
             shot_id = record[0]           
             frames = calculate_average_faces_sim(record)
-            n = 5 if len(frames) > 5 else len(frames)
+            n = 6 if len(frames) > 6 else len(frames)
             frames = sorted(frames, reverse=True, key=lambda x: x[1])
             frames = frames[:n]
             frames_with_faces = []
+            matrix = []
             for index, frame in enumerate(frames):
                 name = frame[0][0]
-                img = cv2.imread(os.path.join(
-                    self.frames_folder, shot_id, name))
+                img_path = os.path.join(self.frames_folder, "video" + shot_id.split('_')[0][4:], shot_id, name)
+                print(img_path)
+                img = cv2.imread(img_path)
                 x1, y1, x2, y2 = frame[0][1]
                 cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)         
                 frames_with_faces.append(img)
+                if len(frames_with_faces) == 3:
+                    matrix.append(frames_with_faces)
+                    frames_with_faces = []
+            m = len(frames_with_faces) 
+            if m > 0:
+                if m < 3:
+                    for i in range(3 - m):
+                        frames_with_faces.append(np.zeros((341, 192, 3), dtype=np.uint8))
+                matrix.append(frames_with_faces)
 
-            file_name = "top" + str(i+1) + "_" + \
+            file_name = str(i+1) + "_" + \
                 shot_id + "_" + str(record[1][0]) + ".jpg"
-            save_path = os.path.join(save_folder, query_name, file_name)
-            self.stich([frames_with_faces],
-                                  shot_id, save_path=save_path)
+            save_path = os.path.join(save_folder, file_name)
+            self.stich(matrix, shot_id, save_path=save_path, size=(511, 288))
 
-    def process_training_set(self, training_set_path, shape=(40, 40), save_path):
+    def process_training_set(self, training_set_path, shape=(40, 40), save_path=None):
         with open(training_set_path, "rb") as f:
             training_set = pickle.load(f)
         training_set = list(zip(training_set[0], training_set[1]))

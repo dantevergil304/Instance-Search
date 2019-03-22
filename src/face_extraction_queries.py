@@ -31,7 +31,7 @@ def detect_face_by_image(query, masks):
     factor = 0.709
 
     ret = []
-    result = []
+    # result = []
     for image, mask in zip(query, masks):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         im_height, im_width = image.shape[0], image.shape[1]
@@ -56,7 +56,7 @@ def detect_face_by_image(query, masks):
                 best_overlap = overlap
 
         # Result image after applying mask
-        mask_img = cv2.bitwise_and(image, image, mask=mask)
+        # mask_img = cv2.bitwise_and(image, image, mask=mask)
         if best_bbox is not None:
             x, y, _x, _y = [int(coord) for coord in best_bbox[:4]]
             face = image[y: _y, x: _x]
@@ -65,10 +65,12 @@ def detect_face_by_image(query, masks):
             # cv2.waitKey()
             # cv2.destroyAllWindows()
             ret.append(face)
-            cv2.rectangle(mask_img, (x, y), (_x, _y), (0, 255, 0), 2)
-            result.append(mask_img)
+            # cv2.rectangle(mask_img, (x, y), (_x, _y), (0, 255, 0), 2)
+            # result.append(mask_img)
+        else:
+            ret.append(None)
 
-    return ret, result
+    return ret  # , result
 
 
 def detect_face_by_path(query_path, masks_path):
@@ -83,7 +85,7 @@ def detect_face_by_path(query_path, masks_path):
     '''
     query = [cv2.imread(im_path) for im_path in query_path]
     masks = [cv2.imread(mask_path, 0) for mask_path in masks_path]
-    ret, result = detect_face_by_image(query, masks)
+    ret = detect_face_by_image(query, masks)
     # for res, path in zip(result, query_path):
     # im_name = path.split('/')[-1]
     # res = cv2.cvtColor(res, cv2.COLOR_RGB2BGR)

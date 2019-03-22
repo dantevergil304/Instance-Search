@@ -430,35 +430,35 @@ class SearchEngine(object):
         self.sticher.stich(matrix_images=[faces_sr, temp], title="Remove bad faces", 
                             save_path=os.path.join(root_result_folder, "rm_bad_faces.jpg"))
 
-        if isStage1:                 
+        if isStage1:     
+           
             print("\n==============================================================================")
             print("\n                       [+] Stage 1 of searching:\n")
             print(
-                "==============================================================================")            
-            start = time.time()
-            result = self.stage_1(
-                query_faces, self.default_feature_folder)
-            end = time.time()
-            stage_1_execution_time = end - start
-            write_result_to_file(self.query_name, result, os.path.join(
-                root_result_folder, "stage_1_trec_eval.txt"))
-            write_result(self.query_name, result, os.path.join(
-                root_result_folder, "stage_1.pkl"))
-            self.sticher.process_result(result, os.path.join(root_result_folder, 'stage 1'))
+                "==============================================================================")
+            # Check if result at stage 1 has been saved
+            if not os.path.exists(os.path.join(root_result_folder, 'stage_1.pkl')):
+                start = time.time()
+                result = self.stage_1(
+                    query_faces, self.default_feature_folder)
+                end = time.time()
+                stage_1_execution_time = end - start
+                write_result_to_file(self.query_name, result, os.path.join(
+                    root_result_folder, "stage_1_trec_eval.txt"))
+                write_result(self.query_name, result, os.path.join(
+                    root_result_folder, self.query_name, "stage_1.pkl"))
+                self.sticher.process_result(result, os.path.join(root_result_folder, 'stage 1'))
 
-        if isStage2: 
+        if isStage2:
+            shutil.rmtree(os.path.join(root_result_folder, 'stage 2')) 
             print("\n==============================================================================")
             print("\n                       [+] Stage 2 of searching:\n")
             print(
                 "==============================================================================")
-            stage_1_result_file = os.path.join(root_result_folde,r self.query_name, "stage_1.pkl")
-            if (os.path.exist(stage_1_result_file))
-                with open(os.path.join(root_result_folder, self.query_name, "stage_1.pkl"), 'rb') as f:
-                    result = pickle.load(f)
-
+            with open(os.path.join(self.result_path["stage_1"], self.query_name + ".pkl"), 'rb') as f:
+                result = pickle.load(f)
             training_set = self.form_training_set(
                 result[:100], thresh=0.6, rmBadFaces=self._PEsolvePnP)
-                
             training_data_filename = os.listdir(os.path.join(
                 self.training_data_folder, self.query_name))[0]
             with open(os.path.join(self.training_data_folder, self.query_name, training_data_filename), 'rb') as f:
@@ -469,7 +469,8 @@ class SearchEngine(object):
             write_result(self.query_name, result, os.path.join(
                 self.result_path["stage_2"], self.query_name + ".pkl"))
         
-        if isStage3:            
+        if isStage3:
+            shutil.rmtree(os.path.join(root_result_folder, 'stage 3')) 
             print("\n==============================================================================")
             print("\n                       [+] Stage 3 of searching:\n")
             print(
@@ -495,12 +496,14 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 
     query_folder = "../data/raw_data/queries/"
-    #names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    names = ["9104"]
+    names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     # name = names[0]
     for name in names:
+        shutil.rmtree(os.path.join(search_engine.result_path, name, 'stage 1')) 
+        shutil.rmtree(os.path.join(search_engine.result_path, name, 'stage 2')) 
+        shutil.rmtree(os.path.join(search_engine.result_path, name, 'stage 3')) 
         os.makedirs(os.path.join(search_engine.result_path, name, "stage 1"), exist_ok=True)
         os.makedirs(os.path.join(search_engine.result_path, name, "stage 2"), exist_ok=True)
         os.makedirs(os.path.join(search_engine.result_path, name, "stage 3"), exist_ok=True)
@@ -530,5 +533,5 @@ if __name__ == '__main__':
 
         search_engine.sticher.stich(matrix_images=[imgs_v, masks_v], title="Query : " + name, 
                                     save_path=os.path.join(search_engine.result_path, name , "query.jpg"))  
-        search_engine.searching(query, masks, isStage1=False, isStage2=True)
+        search_engine.searching(query, masks)
 

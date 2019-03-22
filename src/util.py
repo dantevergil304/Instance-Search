@@ -5,7 +5,7 @@ import pickle
 def mean_max_similarity(query, shot_faces):
     '''
     Parameters:
-    - query: [((face matrix, img query path, binary mask path), feature vector)]
+    - query: [(face matrix, feature vector)]
     '''
     final_sim = 0
     frames_with_bb_sim = []
