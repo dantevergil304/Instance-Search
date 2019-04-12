@@ -74,8 +74,8 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
                 print("\t\t[-] No faces were detected in frame")
 
             for index, box in enumerate(boxes):
-                if box[4] < 0.9:  # remove faces with low confidence
-                    continue
+                # if box[4] < 0.9:  # remove faces with low confidence
+                #     continue
                 x1, y1, x2, y2 = int(box[0]), int(
                     box[1]), int(box[2]), int(box[3])
                 if y1 < 0:
@@ -87,7 +87,7 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
                 if x2 > img.shape[1]:
                     x2 = img.shape[1]
                 print("\t\tbox : ", box)
-                face = (frame_id, (x1, y1, x2, y2))
+                face = (frame_id, (x1, y1, x2, y2), box[4])
                 #cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0))
                 #cv2.imshow(frame_id, img)
                 # cv2.waitKey(0)
@@ -122,11 +122,11 @@ if __name__ == "__main__":
         config = json.load(f)
 
     frames_folder = os.path.abspath(
-        config["processed_data"]["5fps_png_frames_folder"])
+        config["processed_data"]["3fps_jpg_frames_folder"])
     faces_folder = os.path.abspath(
-        config["processed_data"]["5fps_png_faces_folder"])
+        config["processed_data"]["3fps_jpg_faces_folder"])
     landmarks_folder = os.path.abspath(
-        config["processed_data"]["5fps_png_landmarks_folder"])
+        config["processed_data"]["3fps_jpg_landmarks_folder"])
 
     for vidId in range(0, 244):
         curVidFrameDir = os.path.join(frames_folder, 'video' + str(vidId))
@@ -135,9 +135,9 @@ if __name__ == "__main__":
             landmarks_folder, 'video' + str(vidId))
 
         print('Video ID:', vidId)
-        #print('Frames Directory:', curVidFrameDir)
-        #print('Faces Directory:', curVidFaceDir)
-        #print('Landmarks Directory:', curVidFrameDir)
+        # print('Frames Directory:', curVidFrameDir)
+        # print('Faces Directory:', curVidFaceDir)
+        # print('Landmarks Directory:', curVidFrameDir)
 
         extract_faces_from_frames_folder(
             curVidFrameDir, curVidFaceDir, curVidLandmarkDir)

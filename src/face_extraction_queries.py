@@ -31,6 +31,7 @@ def detect_face_by_image(query, masks):
     factor = 0.709
 
     ret = []
+    bbs_coord = []
     # result = []
     for image, mask in zip(query, masks):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -65,12 +66,14 @@ def detect_face_by_image(query, masks):
             # cv2.waitKey()
             # cv2.destroyAllWindows()
             ret.append(face)
+            bbs_coord.append((x, y, _x, _y))
             # cv2.rectangle(mask_img, (x, y), (_x, _y), (0, 255, 0), 2)
             # result.append(mask_img)
         else:
             ret.append(None)
+            bbs_coord.append(None)
 
-    return ret  # , result
+    return ret, bbs_coord  # , result
 
 
 def detect_face_by_path(query_path, masks_path):
@@ -85,12 +88,12 @@ def detect_face_by_path(query_path, masks_path):
     '''
     query = [cv2.imread(im_path) for im_path in query_path]
     masks = [cv2.imread(mask_path, 0) for mask_path in masks_path]
-    ret = detect_face_by_image(query, masks)
+    ret, bbs_coord = detect_face_by_image(query, masks)
     # for res, path in zip(result, query_path):
     # im_name = path.split('/')[-1]
     # res = cv2.cvtColor(res, cv2.COLOR_RGB2BGR)
     # cv2.imwrite('./test_output/detect_result/' + im_name, res)
-    return zip(ret, query_path, masks_path)
+    return zip(ret, query_path, masks_path), bbs_coord
 
 
 if __name__ == "__main__":

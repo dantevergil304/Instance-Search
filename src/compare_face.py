@@ -23,8 +23,6 @@ for frame in frames:
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     boxes, landmarks = lib.detect_face(img, minsize, pnet, rnet, onet, threshold, factor)
     for index, box in enumerate(boxes):
-            if box[4] < 0.9:  # remove faces with low confidence
-                continue
             x1, y1, x2, y2 = int(box[0]), int(
                 box[1]), int(box[2]), int(box[3])
             if y1 < 0:

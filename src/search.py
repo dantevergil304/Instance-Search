@@ -9,11 +9,13 @@ from face_extraction_queries import detect_face_by_path
 from vgg_finetune import fine_tune, extract_face_features
 from sticher import ImageSticher
 from keras.models import load_model
-from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity, write_result_to_file, write_result
+from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity, write_result_to_file, write_result, create_stage_folder, adjust_size_different_images, create_image_label, max_mean_similarity, max_max_similarity
 from scipy import stats
 from PIL import Image
 from poseEstimate import getFaceRotationAngles
-import shutil
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score
+
 import numpy as np
 import json
 import pickle
@@ -26,11 +28,13 @@ import glob
 
 class SearchEngine(object):
     def __init__(self, image_sticher):
-        vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
-        out = vgg_model.get_layer("fc6").output
-        self.default_vgg = Model(vgg_model.input, out)
+        # vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
+        # out = vgg_model.get_layer("fc6").output
+        # self.default_vgg = Model(vgg_model.input, out)
+        # self.default_vgg = VGGFace(
+        #     include_top=False, input_shape=(224, 224, 3), pooling='avg')
         with open("../cfg/config.json", "r") as f:
-            self.cfg = json.load(f) 
+            self.cfg = json.load(f)
         with open("../cfg/search_config.json", "r") as f:
             self.search_cfg = json.load(f)
 
@@ -43,15 +47,32 @@ class SearchEngine(object):
             self.cfg["processed_data"]["landmarks_folder"])
         self.frames_folder = os.path.abspath(
             self.cfg["processed_data"]["frames_folder"])
-        self.fine_tune_feature_folder = os.path.abspath(
-            self.cfg["features"]["VGG_fine_tuned_features"])
-        self.fine_tune_model_path = os.path.abspath(
-            self.cfg["models"]["VGG_folder"]["VGG_fine_tuned_folder"])
+
+        self.result_path = os.path.abspath(
+            os.path.join(self.cfg["result"], self.cfg["config"]))
+
+        self.fine_tune_feature_folder = os.path.abspath(os.path.join(
+            self.cfg["features"]["VGG_fine_tuned_features"], self.cfg["config"]))
+
+        self.vgg_fine_tune_model_path = os.path.abspath(
+            os.path.join(self.cfg["models"]["VGG_folder"]["VGG_fine_tuned_folder"], self.cfg["config"]))
+
         self.svm_model_path = os.path.abspath(
-            self.cfg['models']["SVM_folder"])
-        self.training_data_folder = os.path.abspath(
-            self.cfg["training_data"]["data"])
-        self.result_path = os.path.abspath(self.cfg["result"]["config_path"])
+            os.path.join(self.cfg['models']["SVM_folder"], self.cfg["config"]))
+
+        self.vgg_training_data_folder = os.path.abspath(
+            os.path.join(self.cfg["training_data"]["VGG_data"], self.cfg["config"]))
+
+        self.svm_training_data_folder = os.path.abspath(
+            os.path.join(self.cfg["training_data"]["SVM_data"], self.cfg["config"]))
+
+        # Making directories if not exists
+        os.makedirs(self.result_path, exist_ok=True)
+        os.makedirs(self.fine_tune_feature_folder, exist_ok=True)
+        os.makedirs(self.vgg_fine_tune_model_path, exist_ok=True)
+        os.makedirs(self.svm_model_path, exist_ok=True)
+        os.makedirs(self.vgg_training_data_folder, exist_ok=True)
+        os.makedirs(self.svm_training_data_folder, exist_ok=True)
 
         self.query_name = None
         self.sticher = image_sticher
@@ -65,21 +86,30 @@ class SearchEngine(object):
         Returns:
         - query_final: resulting query after remove some bad faces. (same format at parameter)
         '''
-        n = len(query)
-        confs = [0] * n
+        n = len([q for q in query if q is not None])
+        confs = [0] * 4
         query_final = []
 
         for i in range(n):
-            confs[i] = sum([cosine_similarity(query[i][1], query[j][1])
-                            for j in range(n) if i != j])
+            if query[i] is not None:
+                confs[i] = sum([cosine_similarity(query[i][1], query[j][1])
+                                for j in range(n) if i != j and query[j] is not None])
 
         if n > 1:
-            for i in range(n):
-                mean = sum([confs[j] for j in range(n) if i != j]) / (n - 1)
-                if confs[i] + 0.05 >= mean:
-                    query_final.append(query[i])                
+            for i in range(4):
+                if query[i] is not None:
+                    mean = sum([confs[j] for j in range(n) if i !=
+                                j and confs[j] != 0]) / (n - 1)
+                    if confs[i] + 0.05 >= mean:
+                        query_final.append(query[i])
+                    else:
+                        query_final.append(None)
+                else:
+                    query_final.append(None)
+        else:
+            return query
 
-        if len(query_final) == 0:
+        if query_final.count(None) == 4:
             print("[!] ERROR : No image in query")
             return query     # In case all faces are "bad" faces, return the same query features
         return query_final  # Return list of features of "good" faces
@@ -117,7 +147,9 @@ class SearchEngine(object):
                 self.frames_folder, 'video' + video_id, shot_id, face_data[0][0]))
             x1, y1, x2, y2 = face_data[0][1]
             face = img[y1: y2, x1: x2]
-            face = cv2.resize(face, (224, 224))
+
+            face = cv2.resize(face, (256, 256))
+
             X.append(face)
             if face_data[1] >= thresh:
                 Y.append(1)
@@ -140,7 +172,9 @@ class SearchEngine(object):
             rotation_vecs.append(getFaceRotationAngles(
                 image_points, (height, width)))
         for idx, (x_smp, y_smp) in enumerate(zip(x_sample, y_sample)):
-            if abs(rotation_vecs[idx][0]) < 30 and abs(rotation_vecs[idx][1]) < 10:
+            rotation_vecs[idx] = np.minimum(
+                180 - rotation_vecs[idx], rotation_vecs[idx])
+            if abs(rotation_vecs[idx][0]) < 25 and abs(rotation_vecs[idx][1]) < 15:
                 new_x_sample.append(x_smp)
                 new_y_sample.append(y_smp)
 
@@ -208,33 +242,29 @@ class SearchEngine(object):
         X = [a[0] for a in data]
         Y = [a[1] for a in data]
 
-        filename = self.query_name + '_' + 'thresh=' + str(thresh)
-        if rmBadFaces is not None:
-            filename += rmBadFaces.__name__
+        # filename = self.query_name + '_' + 'thresh=' + str(thresh)
+        # if rmBadFaces is not None:
+        #    filename += rmBadFaces.__name__
 
-        save_path = os.path.join(self.training_data_folder, self.query_name)
-        if not os.path.isdir(save_path):
-            os.makedirs(save_path)
-        training_set_path = os.path.join(
-            save_path, filename + '_svm_dataset.pkl')
-        with open(training_set_path, "wb") as f:
-            pickle.dump([X, Y], f)
-        self.visualize_tool.view_training_set(training_set_path)
+        # save_path = os.path.join(self.training_data_folder, self.query_name)
+        # if not os.path.isdir(save_path):
+        #     os.makedirs(save_path)
+
+        # self.sticher.process_training_set(training_set_path)
+
         return [X, Y]
 
     def form_SVM_training_set(self, result, thresh=0.7, rmBadFaces=None):
         X, Y = self.form_training_set(result, thresh, rmBadFaces)
-        filename = os.listdir(os.path.join(
-            self.fine_tune_model_path, self.query_name))[0]
-        model_path = os.path.join(
-            self.fine_tune_model_path, self.query_name, filename)
 
         print('[+] Extracting face features')
+        model_path = os.path.join(
+            self.vgg_fine_tune_model_path, self.query_name, 'vgg_model.h5')
         features = extract_face_features(model_path, X)
         print('[+] Finished extracting face features')
 
         K.clear_session()
-        return [features, Y]
+        return [features, Y], [X, Y]
 
     def stage_1(self, query, feature_folder, isStage3=False):
         ''' 
@@ -259,9 +289,9 @@ class SearchEngine(object):
         # shot_feature_files = [(file, os.path.join(feature_folder, file))
         #                      for file in os.listdir(feature_folder)]
         shot_feature_files = [(os.path.basename(path), path) for path in glob.iglob(
-            feature_folder + '/**/*.pickle', recursive=True)]        
+            feature_folder + '/**/*.pickle', recursive=True)]
         cosine_similarity = []
-        classification_score = []        
+        classification_score = []
         print('[+] Start to compute the similarity between person and each shot\n')
         for idx, shot_feature_file in enumerate(shot_feature_files):
             shot_id = shot_feature_file[0].split(".")[0]
@@ -279,7 +309,7 @@ class SearchEngine(object):
             shot_faces = list(zip(shot_faces, shot_faces_feat))
             #print("\t%s , number of faces : %d" % (shot_id, len(shot_faces)))
 
-            sim, frames_with_bb_sim = mean_max_similarity(
+            sim, frames_with_bb_sim = max_max_similarity(
                 query, shot_faces)
 
             if isStage3:
@@ -294,17 +324,19 @@ class SearchEngine(object):
 
             # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
             result.append((shot_id, sim, frames_with_bb_sim))
-            if len(result) == 100:
-                break
+            # if len(result) == 100:
+            #    break
+
         print('[+] Finished computing similarity for all shots')
 
         if isStage3:
-            person_similarity = stats.zscore(
-                cosine_similarity) + stats.zscore(classification_score)
+            person_similarity = 0.8 * stats.zscore(
+                cosine_similarity) + 0.2 * stats.zscore(classification_score)
             shot_id, _, frames_with_bb_sim = zip(*result)
-            result = list(zip(shot_id, person_similarity, frames_with_bb_sim))
+            result = list(zip(shot_id,
+                              person_similarity, frames_with_bb_sim))
 
-        result.sort(reverse=True, key=lambda x: x[1])                
+        result.sort(reverse=True, key=lambda x: x[1])
         print("[+] Search completed")
         return result[:1000]
 
@@ -316,194 +348,306 @@ class SearchEngine(object):
         '''
         print("[+] Begin stage 2 of searching")
 
-        # self.fine_tune_vgg = fine_tune(
-        #     training_set, model_name=self.query_name)
-        # print("[+] Finished fine tuned VGG Face model")
-
-        filename = os.listdir(os.path.join(
-            self.fine_tune_model_path, self.query_name))[0]
-        self.fine_tune_vgg = load_model(os.path.join(
-            self.fine_tune_model_path, self.query_name, filename))
-        print("[+] Loaded VGG fine tuned model")
+        model_path = os.path.join(
+            self.vgg_fine_tune_model_path, self.query_name, 'vgg_model.h5')
+        if not os.path.exists(model_path):
+            self.fine_tune_vgg = fine_tune(
+                training_set, model_name=self.query_name)
+            print("[+] Finished fine tuned VGG Face model")
+        else:
+            self.fine_tune_vgg = load_model(model_path)
+            print("[+] Load fine tuned VGG Face model")
 
         feature_extractor = Model(
             self.fine_tune_vgg.input, self.fine_tune_vgg.get_layer('fc6').output)
 
         fine_tune_feature_folder = os.path.join(
             self.fine_tune_feature_folder, self.query_name)
-        if not os.path.isdir(fine_tune_feature_folder):
+
+        if not os.path.exists(fine_tune_feature_folder):
             os.makedirs(fine_tune_feature_folder)
             print("[+]Begin extract feature using fine tuned model")
             extract_database_faces_features(
                 feature_extractor, self.frames_folder, self.faces_folder, fine_tune_feature_folder)
             print("[+] Finished extract feature")
         query_faces = []
+
         for face in query:
             # faces_features store extractly like query_faces_sr except with addtional information, feature of query faces
-            feature = extract_feature_from_face(feature_extractor, face[0][0])
+            feature = extract_feature_from_face(feature_extractor, face[0])
             query_faces.append((face[0], feature))
 
         K.clear_session()
         return self.stage_1(query_faces, fine_tune_feature_folder)
 
     def stage_3(self, query, training_set=None):
-        from sklearn.svm import SVC
 
         X, y = training_set[0], training_set[1]
 
-        print('[+] Begin Training SVM')
-        self.svm_clf = SVC(probability=True, verbose=True,
-                           random_state=42, kernel='linear')
-        self.svm_clf.fit(X, y)
-        print('[+] Fininshed Training SVM')
+        os.makedirs(os.path.join(self.svm_model_path,
+                                 self.query_name), exist_ok=True)
+        svm_model_path = os.path.join(
+            self.svm_model_path, self.query_name, 'svm_model.pkl')
 
-        with open(os.path.join(self.svm_model_path, self.query_name, self.query_name + '.pkl'), 'wb') as f:
-            pickle.dump(self.svm_clf, f)
+        if not os.path.exists(svm_model_path):
+            print('[+] Begin Training SVM')
+            self.svm_clf = SVC(probability=True, verbose=True,
+                               random_state=42, kernel='linear', decision_function_shape='ovo')
+            self.svm_clf.fit(X, y)
+            print('[+] Fininshed Training SVM')
 
-        # with open(os.path.join(self.svm_model_path, 'archie.pkl'), 'rb') as f:
-        #     self.svm_clf = pickle.load(f)
+            with open(svm_model_path, 'wb') as f:
+                pickle.dump(self.svm_clf, f)
+        else:
+            print('[+] SVM model already exists')
+            with open(svm_model_path, 'rb') as f:
+                self.svm_clf = pickle.load(f)
 
         query_faces = []
-        filename = os.listdir(os.path.join(
-            self.fine_tune_model_path, self.query_name))[0]
-        fine_tune_vgg = load_model(os.path.join(
-            self.fine_tune_model_path, self.query_name, filename))
+        vgg_fine_tune_model_path = os.path.join(
+            self.vgg_fine_tune_model_path, self.query_name, 'vgg_model.h5')
+        fine_tune_vgg = load_model(vgg_fine_tune_model_path)
         feature_extractor = Model(
             fine_tune_vgg.input, fine_tune_vgg.get_layer('fc6').output)
         for face in query:
             # faces_features store extractly like query_faces_sr except with addtional information, feature of query faces
-            feature = extract_feature_from_face(feature_extractor, face[0][0])
+            feature = extract_feature_from_face(feature_extractor, face[0])
             query_faces.append((face[0], feature))
 
         K.clear_session()
 
-        return self.stage_1(query_faces, os.path.join(self.fine_tune_feature_folder, self.query_name), isStage3=True)
+        fine_tune_feature_folder = os.path.join(
+            self.fine_tune_feature_folder, self.query_name)
+
+        return self.stage_1(query_faces, fine_tune_feature_folder, isStage3=True)
 
     def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False):
-        
+
         root_result_folder = os.path.join(self.result_path, self.query_name)
         stage_1_execution_time = 0
         stage_2_execution_time = 0
         stage_3_execution_time = 0
 
-        #Detect faces in query
-        query_faces = detect_face_by_path(query, mask)
+        # Detect faces in query
+        query_faces, bb = detect_face_by_path(query, mask)
         print("[+] Detected faces from query")
 
-        #Apply super resolution
-        faces_v = list(zip(*query_faces))[0]                        
-        temp_1 = []
+        faces_v = list(zip(*query_faces))[0]
+        v_faces = adjust_size_different_images(faces_v, 341, 341/2)
+
+        # Apply super resolution
         faces_sr = []
-        temp_2 = []
         for face in faces_v:
+            if face is not None:
+                faces_sr.append(apply_super_res(face))
+            else:
+                faces_sr.append(None)
+
+        v_faces_sr = adjust_size_different_images(faces_sr, 341, 341)
+
+        temp_1 = []
+        temp_2 = []
+        for i, face in enumerate(v_faces):
             if face is None:
                 temp_1.append(np.zeros((341, 192, 3), dtype=np.uint8))
                 temp_2.append(np.zeros((341, 192, 3), dtype=np.uint8))
             else:
                 temp_1.append(face)
-                temp_2.append(apply_super_res(face))
-                faces_sr.append(temp_2[-1])
+                temp_2.append(v_faces_sr[i])
+
         print("[+] Applied super resolution to query")
 
         imgs_v = [cv2.imread(q) for q in query]
-        self.sticher.stich(matrix_images=[imgs_v, temp_1], title="Detected faces in query", 
-                            save_path=os.path.join(root_result_folder, "faces.jpg"))
+        for i, img in enumerate(imgs_v):
+            if bb[i]:
+                cv2.rectangle(img, (bb[i][0], bb[i][1]),
+                              (bb[i][2], bb[i][3]), (0, 255, 0), 5)
 
-        self.sticher.stich(matrix_images=[temp_1, temp_2],title="Apply super resolution", 
-                            save_path=os.path.join(root_result_folder, "sr.jpg"))
+        # Extract query feature
+        vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
+        out = vgg_model.get_layer("fc6").output
+        default_vgg = Model(vgg_model.input, out)
 
-        #Extract query feature
         faces_features = []
         for face in faces_sr:
-            feature = extract_feature_from_face(self.default_vgg, face)            
-            faces_features.append((face, feature))
+            if face is not None:
+                feature = extract_feature_from_face(default_vgg, face)
+                faces_features.append((face, feature))
+            else:
+                faces_features.append(None)
+
         print("[+] Extracted feature of query images")
 
         query_faces = self.remove_bad_faces(faces_features)
-        print("[+] Removed bad faces from query")
-
         # Visulize the query after remove bad faces
-        shift = len(faces_sr) - len(query_faces)
-        temp = [query_face[0] for query_face in query_faces]
-        for i in range(shift):
-            temp.append(np.zeros((341, 192, 3), dtype=np.uint8))
-        self.sticher.stich(matrix_images=[faces_sr, temp], title="Remove bad faces", 
-                            save_path=os.path.join(root_result_folder, "rm_bad_faces.jpg"))
+        temp = []
+        for query_face in query_faces:
+            if not query_face:
+                temp.append(np.zeros((341, 192, 3), dtype=np.uint8))
+            else:
+                temp.append(query_face[0])
+        temp = adjust_size_different_images(temp, 341, 341)
 
-        if isStage1:                 
-            print("\n==============================================================================")
+        frames_faces_label = create_image_label(
+            "Detect faces in frames", (192, 350, 3))
+        imgs_v = [cv2.resize(img, (341, 192)) for img in imgs_v]
+        imgs_v = [frames_faces_label] + imgs_v
+
+        before_sr_label = create_image_label(
+            "Before apply SR", (temp_1[0].shape[0], 350, 3))
+        temp_1 = [before_sr_label] + temp_1
+
+        after_sr_label = create_image_label(
+            "After apply SR", (temp_2[0].shape[0], 350, 3))
+        temp_2 = [after_sr_label] + temp_2
+
+        rmbf_label = create_image_label(
+            "After remove bad faces", (temp[0].shape[0], 350, 3))
+        temp = [rmbf_label] + temp
+
+        self.sticher.stich(matrix_images=[imgs_v, temp_1, temp_2,  temp], title="Preprocess query",
+                           save_path=os.path.join(root_result_folder, "preprocess.jpg"), size=None, reduce_size=True)
+
+        query_faces = [query_face for query_face in query_faces if query_face]
+
+        if isStage1:
+            print(
+                "\n==============================================================================")
             print("\n                       [+] Stage 1 of searching:\n")
             print(
-                "==============================================================================")            
+                "==============================================================================")
+            stage_1_path = os.path.join(root_result_folder, "stage 1")
+            create_stage_folder(stage_1_path)
             start = time.time()
+            default_feature_folder = os.path.join(
+                self.default_feature_folder, self.cfg['config'])
             result = self.stage_1(
-                query_faces, self.default_feature_folder)
-            end = time.time()
-            stage_1_execution_time = end - start
+                query_faces, default_feature_folder)
+            stage_1_execution_time = time.time() - start
             write_result_to_file(self.query_name, result, os.path.join(
                 root_result_folder, "stage_1_trec_eval.txt"))
             write_result(self.query_name, result, os.path.join(
                 root_result_folder, "stage_1.pkl"))
-            self.sticher.process_result(result, os.path.join(root_result_folder, 'stage 1'))
+            self.sticher.save_shots_max_images(
+                result, os.path.join(stage_1_path))
 
-        if isStage2: 
-            print("\n==============================================================================")
+        if isStage2:
+            print(
+                "\n==============================================================================")
             print("\n                       [+] Stage 2 of searching:\n")
             print(
                 "==============================================================================")
-            stage_1_result_file = os.path.join(root_result_folde,r self.query_name, "stage_1.pkl")
-            if (os.path.exist(stage_1_result_file))
-                with open(os.path.join(root_result_folder, self.query_name, "stage_1.pkl"), 'rb') as f:
-                    result = pickle.load(f)
+            stage_2_path = os.path.join(root_result_folder, "stage 2")
+            create_stage_folder(stage_2_path)
 
-            training_set = self.form_training_set(
-                result[:100], thresh=0.6, rmBadFaces=self._PEsolvePnP)
-                
-            training_data_filename = os.listdir(os.path.join(
-                self.training_data_folder, self.query_name))[0]
-            with open(os.path.join(self.training_data_folder, self.query_name, training_data_filename), 'rb') as f:
-                training_set = pickle.load(f)
+            start = time.time()
+            stage_1_result_file = os.path.join(
+                root_result_folder, "stage_1.pkl")
+            with open(stage_1_result_file, 'rb') as f:
+                result = pickle.load(f)
+
+            if not os.path.isdir(os.path.join(self.vgg_training_data_folder, self.query_name)):
+                os.mkdir(os.path.join(
+                    self.vgg_training_data_folder, self.query_name))
+
+            training_set_path = os.path.join(
+                self.vgg_training_data_folder, self.query_name, "training_data.pkl")
+
+            if not os.path.exists(training_set_path):
+                training_set = self.form_training_set(
+                    result[:100], thresh=0.6, rmBadFaces=self._PEsolvePnP)
+                with open(training_set_path, "wb") as f:
+                    pickle.dump(training_set, f)
+                self.sticher.process_training_set(
+                    training_set_path, save_path=os.path.join(self.vgg_training_data_folder, self.query_name))
+                print("[+] Builded training data")
+            else:
+                with open(training_set_path, 'rb') as f:
+                    training_set = pickle.load(f)
+                print("[+] Loaded training data")
+
             result = self.stage_2(query_faces, training_set)
+            stage_2_execution_time = time.time() - start
             write_result_to_file(self.query_name, result, os.path.join(
-                self.result_path["stage_2"], self.query_name + ".txt"))
+                root_result_folder, "stage_2_trec_eval.txt"))
             write_result(self.query_name, result, os.path.join(
-                self.result_path["stage_2"], self.query_name + ".pkl"))
-        
-        if isStage3:            
-            print("\n==============================================================================")
+                root_result_folder, "stage_2.pkl"))
+            self.sticher.save_shots_max_images(
+                result, stage_2_path)
+
+        if isStage3:
+            print(
+                "\n==============================================================================")
             print("\n                       [+] Stage 3 of searching:\n")
             print(
                 "==============================================================================")
+            stage_3_path = os.path.join(root_result_folder, "stage 3")
+            create_stage_folder(stage_3_path)
+            start = time.time()
 
-            with open(os.path.join(self.result_path["stage_2"], self.query_name + ".pkl"), 'rb') as f:
+            stage_2_result_file = os.path.join(
+                root_result_folder, "stage_2.pkl")
+            with open(stage_2_result_file, 'rb') as f:
                 result = pickle.load(f)
-            svm_training_set = self.form_SVM_training_set(
-                result[:200], thresh=0.7, rmBadFaces=self._PEsolvePnP)
-            result = self.stage_3(query_faces, svm_training_set)
+
+            if not os.path.isdir(os.path.join(self.svm_training_data_folder, self.query_name)):
+                os.mkdir(os.path.join(
+                    self.svm_training_data_folder, self.query_name))
+
+            training_set_path = os.path.join(
+                self.svm_training_data_folder, self.query_name, "training_data.pkl")
+            faces_training_set_path = os.path.join(
+                self.svm_training_data_folder, self.query_name, "faces_training_data.pkl")
+
+            if not os.path.exists(training_set_path):
+                training_set, faces_training_set = self.form_SVM_training_set(
+                    result[:200], thresh=0.65, rmBadFaces=self._PEsolvePnP)
+
+                with open(training_set_path, "wb") as f:
+                    pickle.dump(training_set, f)
+
+                with open(faces_training_set_path, 'wb') as f:
+                    pickle.dump(faces_training_set, f)
+                self.sticher.process_training_set(
+                    faces_training_set_path, save_path=os.path.join(self.svm_training_data_folder, self.query_name))
+
+                print("[+] Builded training data")
+            else:
+                print('Training data already exists')
+                with open(training_set_path, 'rb') as f:
+                    training_set = pickle.load(f)
+                print("[+] Loaded training data")
+
+            result = self.stage_3(query_faces, training_set)
+            stage_3_execution_time = time.time() - start
             write_result_to_file(self.query_name, result, os.path.join(
-                self.result_path["stage_3"], self.query_name + ".txt"))
+                root_result_folder, "stage_3_trec_eval.txt"))
             write_result(self.query_name, result, os.path.join(
-                self.result_path["stage_3"], self.query_name + ".pkl"))
-        
+                root_result_folder, "stage_3.pkl"))
+            self.sticher.save_shots_max_images(
+                result, stage_3_path)
+
         with open(os.path.join(self.result_path, self.query_name, 'log.txt'), 'w') as f:
-            f.write("Execution time of stage 1 : " + str(stage_1_execution_time))
+            f.write("Execution time of stage 1 : " +
+                    str(stage_1_execution_time))
+            f.write("\nExecution time of stage 2 : " +
+                    str(stage_2_execution_time))
+            f.write("\nExecution time of stage 3 : " +
+                    str(stage_3_execution_time))
 
 
 if __name__ == '__main__':
 
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 
     query_folder = "../data/raw_data/queries/"
-    #names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    names = ["9104"]
+    names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
+    #names = ["9116", "9119", "9124", "9138"]
+    #names = ['9104']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
-    # name = names[0]
     for name in names:
-        os.makedirs(os.path.join(search_engine.result_path, name, "stage 1"), exist_ok=True)
-        os.makedirs(os.path.join(search_engine.result_path, name, "stage 2"), exist_ok=True)
-        os.makedirs(os.path.join(search_engine.result_path, name, "stage 3"), exist_ok=True)
         query = [
             name + ".1.src.bmp",
             name + ".2.src.bmp",
@@ -523,12 +667,13 @@ if __name__ == '__main__':
         print("============================================================================\n\n")
         print()
         print("                       QUERY CHARACTER : %s\n\n" % (name))
-        print("============================================================================")
+        print(
+            "============================================================================")
         imgs_v = [cv2.imread(q) for q in query]
         masks_v = [cv2.imread(m) for m in masks]
         search_engine.query_name = name
 
-        search_engine.sticher.stich(matrix_images=[imgs_v, masks_v], title="Query : " + name, 
-                                    save_path=os.path.join(search_engine.result_path, name , "query.jpg"))  
-        search_engine.searching(query, masks, isStage1=False, isStage2=True)
-
+        search_engine.sticher.stich(matrix_images=[imgs_v, masks_v], title="Query : " + name,
+                                    save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
+        search_engine.searching(
+            query, masks, isStage1=True, isStage2=False, isStage3=False)

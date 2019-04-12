@@ -20,12 +20,18 @@ class ImageSticher():
         self.frames_folder = os.path.abspath(
             self.cfg["processed_data"]["frames_folder"])
 
-    def stich(self, matrix_images, title, save_path=None, size=(341, 192)):
+    def stich(self, matrix_images, title, save_path=None, size=(341, 192), reduce_size=False):
         imgs = []
-        for row in matrix_images:
-            h = np.hstack(tuple([cv2.resize(img, size) for img in row]))
+        for i, row in enumerate(matrix_images):
+            if size is None:
+                h = np.hstack(tuple(row))
+            else:
+                h = np.hstack(tuple([cv2.resize(img, size) for img in row]))
             imgs.append(h)
         img = np.vstack(tuple(imgs))
+        if reduce_size:
+            img = cv2.resize(
+                img, (int(img.shape[0]/1.5), int(img.shape[1]/1.5)))
         if save_path:
             print("Save %s image to %s" % (title, save_path))
             cv2.imwrite(save_path, img)
@@ -33,11 +39,27 @@ class ImageSticher():
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
+    def save_shots_max_images(self, result, save_folder):
+        for i, record in enumerate(result):
+            shot_id = record[0]
+            frames = calculate_average_faces_sim(record)
+            frames = sorted(frames, reverse=True, key=lambda x: x[1])
+            frame = frames[0]
+            name = frame[0][0]
+            img_path = os.path.join(
+                self.frames_folder, "video" + shot_id.split('_')[0][4:], shot_id, name)
+            x1, y1, x2, y2 = frame[0][1]
+            img = cv2.imread(img_path)
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            file_name = str(i+1) + "_" + \
+                shot_id + "_" + str(record[1][0][0]) + ".jpg"
+            save_path = os.path.join(save_folder, file_name)
+            self.stich([[img]], shot_id, save_path=save_path)
+
     def process_result(self, result, save_folder):
-        result = result[:20]
         print("[+] Visualize results")
         for i, record in enumerate(result):
-            shot_id = record[0]           
+            shot_id = record[0]
             frames = calculate_average_faces_sim(record)
             n = 6 if len(frames) > 6 else len(frames)
             frames = sorted(frames, reverse=True, key=lambda x: x[1])
@@ -46,20 +68,22 @@ class ImageSticher():
             matrix = []
             for index, frame in enumerate(frames):
                 name = frame[0][0]
-                img_path = os.path.join(self.frames_folder, "video" + shot_id.split('_')[0][4:], shot_id, name)
+                img_path = os.path.join(
+                    self.frames_folder, "video" + shot_id.split('_')[0][4:], shot_id, name)
                 print(img_path)
                 img = cv2.imread(img_path)
                 x1, y1, x2, y2 = frame[0][1]
-                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)         
+                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 frames_with_faces.append(img)
                 if len(frames_with_faces) == 3:
                     matrix.append(frames_with_faces)
                     frames_with_faces = []
-            m = len(frames_with_faces) 
+            m = len(frames_with_faces)
             if m > 0:
                 if m < 3:
                     for i in range(3 - m):
-                        frames_with_faces.append(np.zeros((341, 192, 3), dtype=np.uint8))
+                        frames_with_faces.append(
+                            np.zeros((341, 192, 3), dtype=np.uint8))
                 matrix.append(frames_with_faces)
 
             file_name = str(i+1) + "_" + \
@@ -80,10 +104,6 @@ class ImageSticher():
         if shape is None:
             size = round(math.sqrt(no_samples))
             shape = (size, size)
-
-        if not os.path.isdir(os.path.join(self.cfg['training_data']['visualized_data'], query_id)):
-            os.mkdir(os.path.join(
-                self.cfg['training_data']['visualized_data'], query_id))
 
         rows = []
         row = []
@@ -118,7 +138,7 @@ class ImageSticher():
                 if len(rows) > shape[0] or count == no_samples - 1:
                     img = np.vstack(tuple(rows))
                     cv2.imwrite(os.path.join(
-                        self.cfg["training_data"]["visualized_data"], query_id, file_name + '_' + str(num_img) + ".jpg"), img)
+                        save_path, 'visualize_training_data_' + str(num_img) + '.jpg'), img)
                     num_img += 1
                     rows = []
                     if count == no_samples-1:

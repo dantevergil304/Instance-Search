@@ -41,7 +41,6 @@ def fine_tune(train_data, eps=1, model_name=None):
     train_labels = np.array(train_data[1])
 
     finetune_model.fit(train_images, train_labels, epochs=eps, batch_size=10)
-    finetune_model.save(os.path.join(save_path, model_name + '.h5'))
 
     return finetune_model
 
@@ -51,7 +50,11 @@ def extract_face_features(model_path, faces_list):
 
     feature_extractor = Model(model.input, model.get_layer('fc6').output)
 
-    X = np.reshape(faces_list, (-1, 224, 224, 3))
-    print(X.shape)
+    resized_faces_list = []
+    for face in faces_list:
+        resized_face = cv2.resize(face, (224, 224))
+        resized_faces_list.append(resized_face)
+
+    X = np.reshape(resized_faces_list, (-1, 224, 224, 3))
 
     return feature_extractor.predict(X, batch_size=20, verbose=1)
