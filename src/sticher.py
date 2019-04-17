@@ -91,7 +91,7 @@ class ImageSticher():
             save_path = os.path.join(save_folder, file_name)
             self.stich(matrix, shot_id, save_path=save_path, size=(511, 288))
 
-    def process_training_set(self, training_set_path, shape=(40, 40), save_path=None):
+    def process_training_set(self, training_set_path, shape=(40, 10), save_path=None):
         with open(training_set_path, "rb") as f:
             training_set = pickle.load(f)
         training_set = list(zip(training_set[0], training_set[1]))

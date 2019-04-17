@@ -79,6 +79,10 @@ def calculate_average_faces_sim(record):
     '''
     faces_data = []
     faces_matrix = record[2]
+    for idx, _ in enumerate(faces_matrix):
+        faces_matrix[idx] = sorted(
+            faces_matrix[idx], key=lambda x: (x[0][0], x[0][1]))
+
     col = len(faces_matrix[0])
     row = len(faces_matrix)
     for i in range(col):

@@ -28,9 +28,9 @@ import glob
 
 class SearchEngine(object):
     def __init__(self, image_sticher):
-        # vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
-        # out = vgg_model.get_layer("fc6").output
-        # self.default_vgg = Model(vgg_model.input, out)
+        vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
+        out = vgg_model.get_layer("fc7").output
+        self.default_vgg = Model(vgg_model.input, out)
         # self.default_vgg = VGGFace(
         #     include_top=False, input_shape=(224, 224, 3), pooling='avg')
         with open("../cfg/config.json", "r") as f:
@@ -251,6 +251,53 @@ class SearchEngine(object):
         #     os.makedirs(save_path)
 
         # self.sticher.process_training_set(training_set_path)
+
+        return [X, Y]
+
+    def form_training_set_using_best_face_in_each_shot(self, result, rmBadFaces=None):
+        X, Y = [], []
+
+        for seqNum in range(50):  # Get positive samples
+            MAX_SIM = -float('Inf')
+            record = result[seqNum]
+            shot_id = record[0]
+            video_id = shot_id.split('_')[0][4:]
+
+            best_face_data = sorted(calculate_average_faces_sim(
+                record), key=lambda x: x[1])[-1]
+
+            frame_file = best_face_data[0][0]
+            frame = cv2.imread(os.path.join(
+                self.frames_folder, 'video' + video_id, shot_id, frame_file))
+
+            x, y, _x, _y = best_face_data[0][1]
+            face = frame[y:_y, x:_x]
+
+            with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id), 'rb') as f:
+                faces = pickle.load(f)
+            with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id), 'rb') as f:
+                landmarks = pickle.load(f)
+
+            X.append(face)
+            Y.append(1)
+
+        for seqNum in range(50, 100):  # Get negative sample
+            record = result[seqNum]
+            shot_id = record[0]
+            video_id = shot_id.split('_')[0][4:]
+
+            best_face_data = sorted(calculate_average_faces_sim(
+                record), key=lambda x: x[1])[-1]
+
+            frame_file = best_face_data[0][0]
+            frame = cv2.imread(os.path.join(
+                self.frames_folder, 'video' + video_id, shot_id, frame_file))
+
+            x, y, _x, _y = best_face_data[0][1]
+            face = frame[y:_y, x:_x]
+
+            X.append(face)
+            Y.append(0)
 
         return [X, Y]
 
@@ -554,8 +601,10 @@ class SearchEngine(object):
                 self.vgg_training_data_folder, self.query_name, "training_data.pkl")
 
             if not os.path.exists(training_set_path):
-                training_set = self.form_training_set(
-                    result[:100], thresh=0.6, rmBadFaces=self._PEsolvePnP)
+                # training_set = self.form_training_set(
+                #     result[:100], thresh=0.8, rmBadFaces=self._PEsolvePnP)
+                training_set = self.form_training_set_using_best_face_in_each_shot(
+                    result[:100], rmBadFaces=self._PEsolvePnP)
                 with open(training_set_path, "wb") as f:
                     pickle.dump(training_set, f)
                 self.sticher.process_training_set(
@@ -566,14 +615,14 @@ class SearchEngine(object):
                     training_set = pickle.load(f)
                 print("[+] Loaded training data")
 
-            result = self.stage_2(query_faces, training_set)
-            stage_2_execution_time = time.time() - start
-            write_result_to_file(self.query_name, result, os.path.join(
-                root_result_folder, "stage_2_trec_eval.txt"))
-            write_result(self.query_name, result, os.path.join(
-                root_result_folder, "stage_2.pkl"))
-            self.sticher.save_shots_max_images(
-                result, stage_2_path)
+            # result = self.stage_2(query_faces, training_set)
+            # stage_2_execution_time = time.time() - start
+            # write_result_to_file(self.query_name, result, os.path.join(
+            #     root_result_folder, "stage_2_trec_eval.txt"))
+            # write_result(self.query_name, result, os.path.join(
+            #     root_result_folder, "stage_2.pkl"))
+            # self.sticher.save_shots_max_images(
+            #     result, stage_2_path)
 
         if isStage3:
             print(
@@ -643,8 +692,6 @@ if __name__ == '__main__':
 
     query_folder = "../data/raw_data/queries/"
     names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    #names = ["9116", "9119", "9124", "9138"]
-    #names = ['9104']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
@@ -676,4 +723,4 @@ if __name__ == '__main__':
         search_engine.sticher.stich(matrix_images=[imgs_v, masks_v], title="Query : " + name,
                                     save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
         search_engine.searching(
-            query, masks, isStage1=True, isStage2=False, isStage3=False)
+            query, masks, isStage1=False, isStage2=True, isStage3=False)
