@@ -60,11 +60,20 @@ def detect_face_by_image(query, masks):
         # mask_img = cv2.bitwise_and(image, image, mask=mask)
         if best_bbox is not None:
             x, y, _x, _y = [int(coord) for coord in best_bbox[:4]]
+            if x < 0:
+                x = 0
+            if y < 0:
+                y = 0
+            if _x >= im_width:
+                _x = im_width
+            if _y >= im_height:
+                _y = im_height
+
             face = image[y: _y, x: _x]
-            face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)
-            # cv2.imshow('face extr query', face)
+            #cv2.imshow('face extr query', face)
             # cv2.waitKey()
             # cv2.destroyAllWindows()
+            face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)
             ret.append(face)
             bbs_coord.append((x, y, _x, _y))
             # cv2.rectangle(mask_img, (x, y), (_x, _y), (0, 255, 0), 2)

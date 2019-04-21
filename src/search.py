@@ -28,11 +28,6 @@ import glob
 
 class SearchEngine(object):
     def __init__(self, image_sticher):
-        vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
-        out = vgg_model.get_layer("fc7").output
-        self.default_vgg = Model(vgg_model.input, out)
-        # self.default_vgg = VGGFace(
-        #     include_top=False, input_shape=(224, 224, 3), pooling='avg')
         with open("../cfg/config.json", "r") as f:
             self.cfg = json.load(f)
         with open("../cfg/search_config.json", "r") as f:
@@ -255,30 +250,45 @@ class SearchEngine(object):
         return [X, Y]
 
     def form_training_set_using_best_face_in_each_shot(self, result, rmBadFaces=None):
-        X, Y = [], []
+        X, Y, landmarks_info = [], [], []
 
         for seqNum in range(50):  # Get positive samples
-            MAX_SIM = -float('Inf')
             record = result[seqNum]
             shot_id = record[0]
             video_id = shot_id.split('_')[0][4:]
 
+            # Get best face
             best_face_data = sorted(calculate_average_faces_sim(
                 record), key=lambda x: x[1])[-1]
 
             frame_file = best_face_data[0][0]
             frame = cv2.imread(os.path.join(
                 self.frames_folder, 'video' + video_id, shot_id, frame_file))
+            height, width = frame.shape[:2]
 
-            x, y, _x, _y = best_face_data[0][1]
-            face = frame[y:_y, x:_x]
-
-            with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id), 'rb') as f:
+            # Get landmark of best face
+            with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
                 faces = pickle.load(f)
-            with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id), 'rb') as f:
+            with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
                 landmarks = pickle.load(f)
 
-            X.append(face)
+            best_face_landmark = None
+            for face, landmark in zip(faces, landmarks):
+                if face == best_face_data[0]:
+                    best_face_landmark = landmark
+                    break
+            image_points = []
+            for i in range(int(len(best_face_landmark)/2.)):
+                x, y = int(best_face_landmark[i]), int(best_face_landmark[i+5])
+                image_points.append((x, y))
+                cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
+            image_points = np.array(image_points, dtype='double')
+
+            x, y, _x, _y = best_face_data[0][1]
+            best_face = frame[y:_y, x:_x]
+            X.append(best_face)
+            landmarks_info.append((image_points, (height, width)))
+
             Y.append(1)
 
         for seqNum in range(50, 100):  # Get negative sample
@@ -293,11 +303,35 @@ class SearchEngine(object):
             frame = cv2.imread(os.path.join(
                 self.frames_folder, 'video' + video_id, shot_id, frame_file))
 
-            x, y, _x, _y = best_face_data[0][1]
-            face = frame[y:_y, x:_x]
+            # Get landmark of best face
+            with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
+                faces = pickle.load(f)
+            with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
+                landmarks = pickle.load(f)
 
-            X.append(face)
+            best_face_landmark = None
+            for face, landmark in zip(faces, landmarks):
+                if face == best_face_data[0]:
+                    best_face_landmark = landmark
+                    break
+            image_points = []
+            for i in range(int(len(best_face_landmark)/2.)):
+                x, y = int(best_face_landmark[i]), int(best_face_landmark[i+5])
+                image_points.append((x, y))
+                cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
+            image_points = np.array(image_points, dtype='double')
+
+            x, y, _x, _y = best_face_data[0][1]
+            best_face = frame[y:_y, x:_x]
+
+            X.append(best_face)
+            landmarks_info.append((image_points, (height, width)))
+
             Y.append(0)
+
+        if rmBadFaces is not None:
+            X, Y, _, _ = rmBadFaces(
+                X, Y, landmarks_info)
 
         return [X, Y]
 
@@ -371,8 +405,8 @@ class SearchEngine(object):
 
             # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
             result.append((shot_id, sim, frames_with_bb_sim))
-            # if len(result) == 100:
-            #    break
+            if len(result) == 100:
+                break
 
         print('[+] Finished computing similarity for all shots')
 
@@ -477,6 +511,7 @@ class SearchEngine(object):
 
         # Detect faces in query
         query_faces, bb = detect_face_by_path(query, mask)
+        K.clear_session()
         print("[+] Detected faces from query")
 
         faces_v = list(zip(*query_faces))[0]
@@ -489,6 +524,7 @@ class SearchEngine(object):
                 faces_sr.append(apply_super_res(face))
             else:
                 faces_sr.append(None)
+        K.clear_session()
 
         v_faces_sr = adjust_size_different_images(faces_sr, 341, 341)
 
@@ -512,7 +548,7 @@ class SearchEngine(object):
 
         # Extract query feature
         vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
-        out = vgg_model.get_layer("fc6").output
+        out = vgg_model.get_layer("fc7").output
         default_vgg = Model(vgg_model.input, out)
 
         faces_features = []
@@ -523,6 +559,7 @@ class SearchEngine(object):
             else:
                 faces_features.append(None)
 
+        K.clear_session()
         print("[+] Extracted feature of query images")
 
         query_faces = self.remove_bad_faces(faces_features)
@@ -691,22 +728,24 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 
     query_folder = "../data/raw_data/queries/"
-    names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
+    # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
+    names = ["chelsea", "darrin", "garry", "heather",
+             "jack", "jane", "max", "minty", "mo", "zainab"]
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
         query = [
-            name + ".1.src.bmp",
-            name + ".2.src.bmp",
-            name + ".3.src.bmp",
-            name + ".4.src.bmp"
+            name + ".1.src.png",
+            name + ".2.src.png",
+            name + ".3.src.png",
+            name + ".4.src.png"
 
         ]
         masks = [
-            name + ".1.mask.bmp",
-            name + ".2.mask.bmp",
-            name + ".3.mask.bmp",
-            name + ".4.mask.bmp"
+            name + ".1.mask.png",
+            name + ".2.mask.png",
+            name + ".3.mask.png",
+            name + ".4.mask.png"
         ]
 
         query = [os.path.join(query_folder, q) for q in query]
@@ -723,4 +762,4 @@ if __name__ == '__main__':
         search_engine.sticher.stich(matrix_images=[imgs_v, masks_v], title="Query : " + name,
                                     save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
         search_engine.searching(
-            query, masks, isStage1=False, isStage2=True, isStage3=False)
+            query, masks, isStage1=True, isStage2=False, isStage3=False)
