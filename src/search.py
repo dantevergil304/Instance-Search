@@ -350,7 +350,7 @@ class SearchEngine(object):
         K.clear_session()
         return [features, Y], [X, Y]
 
-    def stage_1(self, query, feature_folder, isStage3=False, block_interval=None):
+    def uniprocess_stage_1(self, query, feature_folder, isStage3=False, block_interval=None, return_dict=None):
         '''
         Parameters:
         - query: [(face matrix, feature vector)]
@@ -379,7 +379,8 @@ class SearchEngine(object):
         if block_interval:
             # start = block_id * self.search_cfg['blocksize']
             # end = start + self.search_cfg['blocksize']
-            video_feature_files = video_feature_files[block_interval[0]                                                      : block_interval[1]]
+            video_feature_files = \
+                video_feature_files[block_interval[0]:block_interval[1]]
 
         cosine_similarity = []
         classification_score = []
@@ -439,9 +440,51 @@ class SearchEngine(object):
 
         result.sort(reverse=True, key=lambda x: x[1])
         print("[+] Search completed")
-        return result[:1000]
+        if return_dict is not None:
+            return_dict[block_interval] = result
+        return result
 
-    def stage_2(self, query, training_set, block_interval=None):
+    def multiprocess_stage_1(self, query, feature_folder, isStage3=False):
+        total_videos = len(os.listdir(self.frames_folder))
+        avg_video_per_process = total_videos // self.n_jobs
+        remain_videos = total_videos % self.n_jobs
+
+        manager = multiprocessing.Manager()
+        return_dict = manager.dict()
+        processes = []
+
+        batch_size = avg_video_per_process + 1
+        for job_id in range(self.n_jobs):
+            start_idx = job_id * batch_size
+
+            batch_size = avg_video_per_process
+            if job_id < remain_videos:
+                batch_size += 1
+
+            end_idx = start_idx + batch_size
+
+            p = multiprocessing.Process(target=self.uniprocess_stage_1,
+                                        args=(query, feature_folder,
+                                              isStage3, (start_idx, end_idx), return_dict))
+            p.start()
+            processes.append(p)
+
+        for process in processes:
+            process.join()
+
+        result = []
+        for p_result in return_dict.values():
+            result.extend(p_result)
+        result.sort(reverse=True, key=lambda x: x[1])
+
+        return result
+
+    def stage_1(self, query, feature_folder, isStage3=False, multiprocess=False):
+        if multiprocess:
+            return self.multiprocess_stage_1(query, feature_folder, isStage3)[:1000]
+        return self.uniprocess_stage_1(query, feature_folder, isStage3)[:1000]
+
+    def stage_2(self, query, training_set, multiprocess=False):
         '''
         Parameter:
         - query: [((face matrix, img query path, binary mask path), feature vector)]
@@ -479,9 +522,9 @@ class SearchEngine(object):
             query_faces.append((face[0], feature))
 
         K.clear_session()
-        return self.stage_1(query_faces, fine_tune_feature_folder, block_interval=block_interval)
+        return self.stage_1(query_faces, fine_tune_feature_folder, multiprocess=multiprocess)
 
-    def stage_3(self, query, training_set=None, block_interval=None):
+    def stage_3(self, query, training_set=None, multiprocess=False):
 
         X, y = training_set[0], training_set[1]
 
@@ -520,9 +563,9 @@ class SearchEngine(object):
         fine_tune_feature_folder = os.path.join(
             self.fine_tune_feature_folder, self.query_name)
 
-        return self.stage_1(query_faces, fine_tune_feature_folder, isStage3=True, block_interval=block_interval)
+        return self.stage_1(query_faces, fine_tune_feature_folder, isStage3=True, multiprocess=multiprocess)
 
-    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, block_interval=None):
+    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, multiprocess=False):
 
         root_result_folder = os.path.join(self.result_path, self.query_name)
         stage_1_execution_time = 0
@@ -627,19 +670,13 @@ class SearchEngine(object):
             default_feature_folder = os.path.join(
                 self.default_feature_folder, self.search_cfg["feature_descriptor"])
             result = self.stage_1(
-                query_faces, default_feature_folder, block_interval=block_interval)
+                query_faces, default_feature_folder, multiprocess=multiprocess)
             stage_1_execution_time = time.time() - start
 
-            if block_interval:
-                write_result_to_file(self.query_name, result, os.path.join(
-                    root_result_folder, "blocks_result", str(block_interval) + ".txt"))
-                write_result(self.query_name, result, os.path.join(
-                    root_result_folder, "blocks_result", str(block_interval) + ".pkl"))
-            else:
-                write_result_to_file(self.query_name, result, os.path.join(
-                    root_result_folder, "stage_1_treceval.txt"))
-                write_result(self.query_name, result, os.path.join(
-                    root_result_folder, "stage_1.pkl"))
+            write_result_to_file(self.query_name, result, os.path.join(
+                root_result_folder, "stage_1_treceval.txt"))
+            write_result(self.query_name, result, os.path.join(
+                root_result_folder, "stage_1.pkl"))
             # self.sticher.save_shots_max_images(
             #     result, os.path.join(stage_1_path))
 
@@ -681,14 +718,15 @@ class SearchEngine(object):
                 print("[+] Loaded training data")
 
             result = self.stage_2(query_faces, training_set,
-                                  block_interval=block_interval)
+                                  multiprocess=multiprocess)
             stage_2_execution_time = time.time() - start
+
             write_result_to_file(self.query_name, result, os.path.join(
                 root_result_folder, "stage_2_trec_eval.txt"))
             write_result(self.query_name, result, os.path.join(
                 root_result_folder, "stage_2.pkl"))
-            self.sticher.save_shots_max_images(
-                result, stage_2_path)
+            # self.sticher.save_shots_max_images(
+            #     result, stage_2_path)
 
         if isStage3:
             print(
@@ -734,14 +772,15 @@ class SearchEngine(object):
                 print("[+] Loaded training data")
 
             result = self.stage_3(query_faces, training_set,
-                                  block_interval=block_interval)
+                                  multiprocess=multiprocess)
             stage_3_execution_time = time.time() - start
+
             write_result_to_file(self.query_name, result, os.path.join(
                 root_result_folder, "stage_3_trec_eval.txt"))
             write_result(self.query_name, result, os.path.join(
                 root_result_folder, "stage_3.pkl"))
-            self.sticher.save_shots_max_images(
-                result, stage_3_path)
+            # self.sticher.save_shots_max_images(
+            #     result, stage_3_path)
 
         with open(os.path.join(self.result_path, self.query_name, 'log.txt'), 'w') as f:
             f.write("Execution time of stage 1 : " +
@@ -750,36 +789,6 @@ class SearchEngine(object):
                     str(stage_2_execution_time))
             f.write("\nExecution time of stage 3 : " +
                     str(stage_3_execution_time))
-
-    def multiprocess_searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False):
-        total_videos = len(os.listdir(self.frames_folder))
-        avg_video_per_process = total_videos // self.n_jobs
-        remain_videos = total_videos % self.n_jobs
-
-        processes = []
-
-        batch_size = avg_video_per_process + 1
-        for job_id in range(self.n_jobs):
-            start_idx = job_id * batch_size
-
-            batch_size = avg_video_per_process
-            if job_id < remain_videos:
-                batch_size += 1
-
-            end_idx = start_idx + batch_size
-
-            processes.append(
-                multiprocessing.Process(target=self.searching,
-                                        args=(query, mask,
-                                              isStage1,
-                                              isStage2,
-                                              isStage3, (start_idx, end_idx))))
-
-        for process in processes:
-            process.start()
-
-        for process in processes:
-            process.join()
 
 
 if __name__ == '__main__':
