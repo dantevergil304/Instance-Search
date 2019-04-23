@@ -15,6 +15,7 @@ from PIL import Image
 from poseEstimate import getFaceRotationAngles
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
+from natsort import natsorted
 
 import numpy as np
 import json
@@ -24,6 +25,7 @@ import cv2
 import time
 import sys
 import glob
+import multiprocessing
 
 
 class SearchEngine(object):
@@ -73,6 +75,7 @@ class SearchEngine(object):
         self.sticher = image_sticher
         self.fine_tune_vgg = None
         self.svm_clf = None
+        self.n_jobs = self.search_cfg['n_jobs']
 
     def remove_bad_faces(self, query):
         '''
@@ -117,11 +120,11 @@ class SearchEngine(object):
         Parameters:
         record: a list contains 3 elements:
         - shot_id
-        - sim(query, shot_id): similarity between input query and current shot 
+        - sim(query, shot_id): similarity between input query and current shot
         - a matrix of shape(num_query_face, num_shot_face_detected):
             + num_query_face: #remaining faces in query after remove bad faces
             + num_shot_face_detected: #faces detected of the current shot
-            + matrix[i][j]: ((frame file, bb), cosine similarity score 
+            + matrix[i][j]: ((frame file, bb), cosine similarity score
         between 'query face i' and 'shot face j')
         thresh: a similarity thresh for choosing pos and neg_
 
@@ -347,8 +350,8 @@ class SearchEngine(object):
         K.clear_session()
         return [features, Y], [X, Y]
 
-    def stage_1(self, query, feature_folder, isStage3=False):
-        ''' 
+    def stage_1(self, query, feature_folder, isStage3=False, block_interval=None):
+        '''
         Parameters:
         - query: [(face matrix, feature vector)]
         - feature_folder: path to folder of features
@@ -357,56 +360,73 @@ class SearchEngine(object):
         Returns:
         List of elements, each consist of:
         - shot_id
-        - sim(query, shot_id): similarity between input query and current shot 
+        - sim(query, shot_id): similarity between input query and current shot
         - a matrix of shape(num_query_face, num_shot_face_detected):
             + num_query_face: #remaining faces in query after remove bad faces
             + num_shot_face_detected: #faces detected of the current shot
-            + matrix[i][j]: ((frame file, bb), cosine similarity score 
+            + matrix[i][j]: ((frame file, bb), cosine similarity score
         between 'query face i' and 'shot face j')
         '''
 
         result = []
         print("[+] Current feature folder : %s\n" % (feature_folder))
-        # shot_feature_files = [(file, os.path.join(feature_folder, file))
-        #                      for file in os.listdir(feature_folder)]
-        shot_feature_files = [(os.path.basename(path), path) for path in glob.iglob(
-            feature_folder + '/**/*.pickle', recursive=True)]
+        video_feature_files = \
+            natsorted([(file, os.path.join(feature_folder, file))
+                       for file in os.listdir(feature_folder)])
+        # shot_feature_files = [(os.path.basename(path), path) for path in glob.iglob(
+        #     feature_folder + '/**/*.pickle', recursive=True)]
+
+        if block_interval:
+            # start = block_id * self.search_cfg['blocksize']
+            # end = start + self.search_cfg['blocksize']
+            video_feature_files = video_feature_files[block_interval[0]                                                      : block_interval[1]]
+
         cosine_similarity = []
         classification_score = []
+
         print('[+] Start to compute the similarity between person and each shot\n')
-        for idx, shot_feature_file in enumerate(shot_feature_files):
-            shot_id = shot_feature_file[0].split(".")[0]
-            video_id = shot_id.split('_')[0][4:]
-            print('[id: %d], computing similarity for %s' %
-                  (idx, shot_id))
-            feature_path = shot_feature_file[1]
-            face_path = os.path.join(
-                self.faces_folder, 'video' + video_id, shot_feature_file[0])
-            with open(feature_path, "rb") as f:
-                shot_faces_feat = pickle.load(f)
-            with open(face_path, "rb") as f:
-                shot_faces = pickle.load(f)
-            # shot faces is a list with elements consist of  ((frame, (x1, y1, x2, y2)), face features)
-            shot_faces = list(zip(shot_faces, shot_faces_feat))
-            #print("\t%s , number of faces : %d" % (shot_id, len(shot_faces)))
+        for video_feature_file in video_feature_files:
+            video_id = video_feature_file[0].split('.')[0]
+            with open(video_feature_file[1], 'rb') as f:
+                video_feature = pickle.load(f)
 
-            sim, frames_with_bb_sim = max_max_similarity(
-                query, shot_faces)
+            # for idx, shot_feature_file in enumerate(shot_feature_files):
+            for shot_id, shot_faces_feat in video_feature.items():
+                # shot_id = shot_feature_file[0].split(".")[0]
+                # video_id = shot_id.split('_')[0][4:]
+                print('[id: %d], computing similarity for %s' %
+                      (idx, shot_id))
+                # feature_path = shot_feature_file[1]
+                face_path = os.path.join(
+                    self.faces_folder, 'video' + video_id, shot_id + '.pickle')
+                # with open(feature_path, "rb") as f:
+                #     shot_faces_feat = pickle.load(f)
+                with open(face_path, "rb") as f:
+                    shot_faces = pickle.load(f)
+                # shot faces is a list with elements consist of  ((frame, (x1, y1, x2, y2)), face features)
+                shot_faces = list(zip(shot_faces, shot_faces_feat))
 
-            if isStage3:
-                arr = [self.svm_clf.decision_function(
-                    face_feat) for face_feat in shot_faces_feat]
-                decision_score = max(arr)
-                exact_distance = decision_score / \
-                    np.linalg.norm(self.svm_clf.coef_)
+                # print("\t%s , number of faces : %d" % (shot_id, len(shot_faces)))
 
-                cosine_similarity.append(sim)
-                classification_score.append(np.expand_dims(exact_distance, 0))
+                # shot_faces = shot_faces_feat
+                sim, frames_with_bb_sim = mean_max_similarity(
+                    query, shot_faces)
 
-            # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
-            result.append((shot_id, sim, frames_with_bb_sim))
-            if len(result) == 100:
-                break
+                if isStage3:
+                    arr = [self.svm_clf.decision_function(
+                        face_feat) for face_feat in shot_faces_feat]
+                    decision_score = max(arr)
+                    exact_distance = decision_score / \
+                        np.linalg.norm(self.svm_clf.coef_)
+
+                    cosine_similarity.append(sim)
+                    classification_score.append(
+                        np.expand_dims(exact_distance, 0))
+
+                # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
+                result.append((shot_id, sim, frames_with_bb_sim))
+                if len(result) == 100:
+                    break
 
         print('[+] Finished computing similarity for all shots')
 
@@ -421,11 +441,11 @@ class SearchEngine(object):
         print("[+] Search completed")
         return result[:1000]
 
-    def stage_2(self, query, training_set):
+    def stage_2(self, query, training_set, block_interval=None):
         '''
         Parameter:
         - query: [((face matrix, img query path, binary mask path), feature vector)]
-        - training_set: a training set 
+        - training_set: a training set
         '''
         print("[+] Begin stage 2 of searching")
 
@@ -447,7 +467,7 @@ class SearchEngine(object):
 
         if not os.path.exists(fine_tune_feature_folder):
             os.makedirs(fine_tune_feature_folder)
-            print("[+]Begin extract feature using fine tuned model")
+            print("[+] Begin extract feature using fine tuned model")
             extract_database_faces_features(
                 feature_extractor, self.frames_folder, self.faces_folder, fine_tune_feature_folder)
             print("[+] Finished extract feature")
@@ -459,9 +479,9 @@ class SearchEngine(object):
             query_faces.append((face[0], feature))
 
         K.clear_session()
-        return self.stage_1(query_faces, fine_tune_feature_folder)
+        return self.stage_1(query_faces, fine_tune_feature_folder, block_interval=block_interval)
 
-    def stage_3(self, query, training_set=None):
+    def stage_3(self, query, training_set=None, block_interval=None):
 
         X, y = training_set[0], training_set[1]
 
@@ -500,9 +520,9 @@ class SearchEngine(object):
         fine_tune_feature_folder = os.path.join(
             self.fine_tune_feature_folder, self.query_name)
 
-        return self.stage_1(query_faces, fine_tune_feature_folder, isStage3=True)
+        return self.stage_1(query_faces, fine_tune_feature_folder, isStage3=True, block_interval=block_interval)
 
-    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False):
+    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, block_interval=None):
 
         root_result_folder = os.path.join(self.result_path, self.query_name)
         stage_1_execution_time = 0
@@ -548,7 +568,7 @@ class SearchEngine(object):
 
         # Extract query feature
         vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
-        out = vgg_model.get_layer("fc7").output
+        out = vgg_model.get_layer(self.search_cfg["feature_descriptor"]).output
         default_vgg = Model(vgg_model.input, out)
 
         faces_features = []
@@ -563,6 +583,7 @@ class SearchEngine(object):
         print("[+] Extracted feature of query images")
 
         query_faces = self.remove_bad_faces(faces_features)
+
         # Visulize the query after remove bad faces
         temp = []
         for query_face in query_faces:
@@ -604,16 +625,23 @@ class SearchEngine(object):
             create_stage_folder(stage_1_path)
             start = time.time()
             default_feature_folder = os.path.join(
-                self.default_feature_folder, self.cfg['config'])
+                self.default_feature_folder, self.search_cfg["feature_descriptor"])
             result = self.stage_1(
-                query_faces, default_feature_folder)
+                query_faces, default_feature_folder, block_interval=block_interval)
             stage_1_execution_time = time.time() - start
-            write_result_to_file(self.query_name, result, os.path.join(
-                root_result_folder, "stage_1_trec_eval.txt"))
-            write_result(self.query_name, result, os.path.join(
-                root_result_folder, "stage_1.pkl"))
-            self.sticher.save_shots_max_images(
-                result, os.path.join(stage_1_path))
+
+            if block_interval:
+                write_result_to_file(self.query_name, result, os.path.join(
+                    root_result_folder, "blocks_result", str(block_interval) + ".txt"))
+                write_result(self.query_name, result, os.path.join(
+                    root_result_folder, "blocks_result", str(block_interval) + ".pkl"))
+            else:
+                write_result_to_file(self.query_name, result, os.path.join(
+                    root_result_folder, "stage_1_treceval.txt"))
+                write_result(self.query_name, result, os.path.join(
+                    root_result_folder, "stage_1.pkl"))
+            # self.sticher.save_shots_max_images(
+            #     result, os.path.join(stage_1_path))
 
         if isStage2:
             print(
@@ -652,14 +680,15 @@ class SearchEngine(object):
                     training_set = pickle.load(f)
                 print("[+] Loaded training data")
 
-            # result = self.stage_2(query_faces, training_set)
-            # stage_2_execution_time = time.time() - start
-            # write_result_to_file(self.query_name, result, os.path.join(
-            #     root_result_folder, "stage_2_trec_eval.txt"))
-            # write_result(self.query_name, result, os.path.join(
-            #     root_result_folder, "stage_2.pkl"))
-            # self.sticher.save_shots_max_images(
-            #     result, stage_2_path)
+            result = self.stage_2(query_faces, training_set,
+                                  block_interval=block_interval)
+            stage_2_execution_time = time.time() - start
+            write_result_to_file(self.query_name, result, os.path.join(
+                root_result_folder, "stage_2_trec_eval.txt"))
+            write_result(self.query_name, result, os.path.join(
+                root_result_folder, "stage_2.pkl"))
+            self.sticher.save_shots_max_images(
+                result, stage_2_path)
 
         if isStage3:
             print(
@@ -704,7 +733,8 @@ class SearchEngine(object):
                     training_set = pickle.load(f)
                 print("[+] Loaded training data")
 
-            result = self.stage_3(query_faces, training_set)
+            result = self.stage_3(query_faces, training_set,
+                                  block_interval=block_interval)
             stage_3_execution_time = time.time() - start
             write_result_to_file(self.query_name, result, os.path.join(
                 root_result_folder, "stage_3_trec_eval.txt"))
@@ -721,16 +751,47 @@ class SearchEngine(object):
             f.write("\nExecution time of stage 3 : " +
                     str(stage_3_execution_time))
 
+    def multiprocess_searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False):
+        total_videos = len(os.listdir(self.frames_folder))
+        avg_video_per_process = total_videos // self.n_jobs
+        remain_videos = total_videos % self.n_jobs
+
+        processes = []
+
+        batch_size = avg_video_per_process + 1
+        for job_id in range(self.n_jobs):
+            start_idx = job_id * batch_size
+
+            batch_size = avg_video_per_process
+            if job_id < remain_videos:
+                batch_size += 1
+
+            end_idx = start_idx + batch_size
+
+            processes.append(
+                multiprocessing.Process(target=self.searching,
+                                        args=(query, mask,
+                                              isStage1,
+                                              isStage2,
+                                              isStage3, (start_idx, end_idx))))
+
+        for process in processes:
+            process.start()
+
+        for process in processes:
+            process.join()
+
 
 if __name__ == '__main__':
 
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
-
     query_folder = "../data/raw_data/queries/"
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     names = ["chelsea", "darrin", "garry", "heather",
              "jack", "jane", "max", "minty", "mo", "zainab"]
+
+    batch_id = sys.argv[2]
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
@@ -761,5 +822,6 @@ if __name__ == '__main__':
 
         search_engine.sticher.stich(matrix_images=[imgs_v, masks_v], title="Query : " + name,
                                     save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
+
         search_engine.searching(
             query, masks, isStage1=True, isStage2=False, isStage3=False)
