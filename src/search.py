@@ -6,7 +6,7 @@ from keras import backend as K
 from feature_extraction import extract_feature_from_face, extract_database_faces_features
 from apply_super_resolution import apply_super_res
 from face_extraction_queries import detect_face_by_path
-from vgg_finetune import fine_tune, extract_face_features
+from vgg_finetune import fine_tune, extract_feature_from_face_list
 from sticher import ImageSticher
 from keras.models import load_model
 from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity, write_result_to_file, write_result, create_stage_folder, adjust_size_different_images, create_image_label, max_mean_similarity, max_max_similarity
@@ -26,6 +26,7 @@ import time
 import sys
 import glob
 import multiprocessing
+import subprocess
 
 
 class SearchEngine(object):
@@ -344,7 +345,7 @@ class SearchEngine(object):
         print('[+] Extracting face features')
         model_path = os.path.join(
             self.vgg_fine_tune_model_path, self.query_name, 'vgg_model.h5')
-        features = extract_face_features(model_path, X)
+        features = extract_feature_from_face_list(model_path, X)
         print('[+] Finished extracting face features')
 
         K.clear_session()
@@ -386,20 +387,24 @@ class SearchEngine(object):
         classification_score = []
 
         print('[+] Start to compute the similarity between person and each shot\n')
+        idx = 0
         for video_feature_file in video_feature_files:
             video_id = video_feature_file[0].split('.')[0]
+            print(f'Processing video {video_id}')
             with open(video_feature_file[1], 'rb') as f:
                 video_feature = pickle.load(f)
 
             # for idx, shot_feature_file in enumerate(shot_feature_files):
             for shot_id, shot_faces_feat in video_feature.items():
+                idx += 1
                 # shot_id = shot_feature_file[0].split(".")[0]
                 # video_id = shot_id.split('_')[0][4:]
-                print('[id: %d], computing similarity for %s' %
-                      (idx, shot_id))
+                # print('[id: %d], computing similarity for %s' %
+                #       (idx, shot_id))
+                # print(len(result))
                 # feature_path = shot_feature_file[1]
                 face_path = os.path.join(
-                    self.faces_folder, 'video' + video_id, shot_id + '.pickle')
+                    self.faces_folder, video_id, shot_id + '.pickle')
                 # with open(feature_path, "rb") as f:
                 #     shot_faces_feat = pickle.load(f)
                 with open(face_path, "rb") as f:
@@ -426,8 +431,10 @@ class SearchEngine(object):
 
                 # Result is a list of elements consist of (shot_id, similarity(query, shot_id), corresponding matrix faces like explaination (1)
                 result.append((shot_id, sim, frames_with_bb_sim))
-                if len(result) == 100:
-                    break
+            #     if len(result) == 100:
+            #         break
+            # if len(result) == 100:
+            #     break
 
         print('[+] Finished computing similarity for all shots')
 
@@ -440,8 +447,8 @@ class SearchEngine(object):
 
         result.sort(reverse=True, key=lambda x: x[1])
         print("[+] Search completed")
-        if return_dict is not None:
-            return_dict[block_interval] = result
+        with open(os.path.join('../temp', str(block_interval) + '.pkl'), 'wb') as f:
+            pickle.dump(result, f)
         return result
 
     def multiprocess_stage_1(self, query, feature_folder, isStage3=False):
@@ -453,21 +460,23 @@ class SearchEngine(object):
         return_dict = manager.dict()
         processes = []
 
-        batch_size = avg_video_per_process + 1
+        start_idx = 0
+        end_idx = 0
         for job_id in range(self.n_jobs):
-            start_idx = job_id * batch_size
+            start_idx = end_idx 
 
             batch_size = avg_video_per_process
             if job_id < remain_videos:
                 batch_size += 1
 
             end_idx = start_idx + batch_size
+            print('BLock Interval:', start_idx, end_idx)
 
             p = multiprocessing.Process(target=self.uniprocess_stage_1,
                                         args=(query, feature_folder,
                                               isStage3, (start_idx, end_idx), return_dict))
-            p.start()
             processes.append(p)
+            p.start()
 
         for process in processes:
             process.join()
@@ -481,7 +490,18 @@ class SearchEngine(object):
 
     def stage_1(self, query, feature_folder, isStage3=False, multiprocess=False):
         if multiprocess:
-            return self.multiprocess_stage_1(query, feature_folder, isStage3)[:1000]
+            if os.path.isdir('../temp'):
+                subprocess.call(['rm', '-rf', '../temp'])
+            os.mkdir('../temp')
+            self.multiprocess_stage_1(query, feature_folder, isStage3)
+            result = []
+            for result_path in glob.glob('../temp/*pkl'):
+                with open(result_path, 'rb') as f:
+                    result.extend(pickle.load(f))
+
+            subprocess.call(['rm', '-rf', '../temp'])
+            result.sort(reverse=True, key=lambda x: x[1])
+            return result[:1000]
         return self.uniprocess_stage_1(query, feature_folder, isStage3)[:1000]
 
     def stage_2(self, query, training_set, multiprocess=False):
@@ -581,12 +601,22 @@ class SearchEngine(object):
         v_faces = adjust_size_different_images(faces_v, 341, 341/2)
 
         # Apply super resolution
+        super_res_faces_path = os.path.join(root_result_folder, 'super_res_faces.pkl')
         faces_sr = []
-        for face in faces_v:
-            if face is not None:
-                faces_sr.append(apply_super_res(face))
-            else:
-                faces_sr.append(None)
+        if not os.path.exists(super_res_faces_path):
+            faces_sr = []
+            for idx, face in enumerate(faces_v):
+                if face is not None:
+                    faces_sr.append(apply_super_res(face))
+                else:
+                    faces_sr.append(None)
+            with open(super_res_faces_path, 'wb') as f:
+                pickle.dump(faces_sr, f)
+            print("[+] Applied Super Resolution to detected faces")
+        else:
+            with open(super_res_faces_path, 'rb') as f:
+                faces_sr = pickle.load(f)
+            print("[+] Super resolution faces already existed!")
         K.clear_session()
 
         v_faces_sr = adjust_size_different_images(faces_sr, 341, 341)
@@ -600,8 +630,6 @@ class SearchEngine(object):
             else:
                 temp_1.append(face)
                 temp_2.append(v_faces_sr[i])
-
-        print("[+] Applied super resolution to query")
 
         imgs_v = [cv2.imread(q) for q in query]
         for i, img in enumerate(imgs_v):
@@ -799,8 +827,7 @@ if __name__ == '__main__':
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     names = ["chelsea", "darrin", "garry", "heather",
              "jack", "jane", "max", "minty", "mo", "zainab"]
-
-    batch_id = sys.argv[2]
+    names=["chelsea"]
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
@@ -833,4 +860,4 @@ if __name__ == '__main__':
                                     save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
 
         search_engine.searching(
-            query, masks, isStage1=True, isStage2=False, isStage3=False)
+            query, masks, isStage1=True, isStage2=False, isStage3=False, multiprocess=True)
