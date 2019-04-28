@@ -351,7 +351,7 @@ class SearchEngine(object):
         K.clear_session()
         return [features, Y], [X, Y]
 
-    def uniprocess_stage_1(self, query, feature_folder, isStage3=False, block_interval=None, return_dict=None):
+    def uniprocess_stage_1(self, query, feature_folder, isStage3=False, block_interval=None):
         '''
         Parameters:
         - query: [(face matrix, feature vector)]
@@ -372,8 +372,8 @@ class SearchEngine(object):
         result = []
         print("[+] Current feature folder : %s\n" % (feature_folder))
         video_feature_files = \
-            natsorted([(file, os.path.join(feature_folder, file))
-                       for file in os.listdir(feature_folder)])
+            [(file, os.path.join(feature_folder, file))
+                       for file in os.listdir(feature_folder)]
         # shot_feature_files = [(os.path.basename(path), path) for path in glob.iglob(
         #     feature_folder + '/**/*.pickle', recursive=True)]
 
@@ -456,8 +456,6 @@ class SearchEngine(object):
         avg_video_per_process = total_videos // self.n_jobs
         remain_videos = total_videos % self.n_jobs
 
-        manager = multiprocessing.Manager()
-        return_dict = manager.dict()
         processes = []
 
         start_idx = 0
@@ -474,19 +472,12 @@ class SearchEngine(object):
 
             p = multiprocessing.Process(target=self.uniprocess_stage_1,
                                         args=(query, feature_folder,
-                                              isStage3, (start_idx, end_idx), return_dict))
+                                              isStage3, (start_idx, end_idx)))
             processes.append(p)
             p.start()
 
         for process in processes:
             process.join()
-
-        result = []
-        for p_result in return_dict.values():
-            result.extend(p_result)
-        result.sort(reverse=True, key=lambda x: x[1])
-
-        return result
 
     def stage_1(self, query, feature_folder, isStage3=False, multiprocess=False):
         if multiprocess:
@@ -702,7 +693,7 @@ class SearchEngine(object):
             stage_1_execution_time = time.time() - start
 
             write_result_to_file(self.query_name, result, os.path.join(
-                root_result_folder, "stage_1_treceval.txt"))
+                root_result_folder, 'stage 1', "result.txt"))
             write_result(self.query_name, result, os.path.join(
                 root_result_folder, "stage_1.pkl"))
             # self.sticher.save_shots_max_images(
@@ -750,7 +741,7 @@ class SearchEngine(object):
             stage_2_execution_time = time.time() - start
 
             write_result_to_file(self.query_name, result, os.path.join(
-                root_result_folder, "stage_2_trec_eval.txt"))
+                root_result_folder, 'stage 2', "result.txt"))
             write_result(self.query_name, result, os.path.join(
                 root_result_folder, "stage_2.pkl"))
             # self.sticher.save_shots_max_images(
@@ -804,7 +795,7 @@ class SearchEngine(object):
             stage_3_execution_time = time.time() - start
 
             write_result_to_file(self.query_name, result, os.path.join(
-                root_result_folder, "stage_3_trec_eval.txt"))
+                root_result_folder, 'stage 3', "result.txt"))
             write_result(self.query_name, result, os.path.join(
                 root_result_folder, "stage_3.pkl"))
             # self.sticher.save_shots_max_images(
@@ -827,7 +818,7 @@ if __name__ == '__main__':
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     names = ["chelsea", "darrin", "garry", "heather",
              "jack", "jane", "max", "minty", "mo", "zainab"]
-    names=["chelsea"]
+    names = ["zainab"]
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
