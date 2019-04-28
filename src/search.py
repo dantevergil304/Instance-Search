@@ -449,7 +449,7 @@ class SearchEngine(object):
         print("[+] Search completed")
         with open(os.path.join('../temp', str(block_interval) + '.pkl'), 'wb') as f:
             pickle.dump(result, f)
-        return result
+        return result[:1000]
 
     def multiprocess_stage_1(self, query, feature_folder, isStage3=False):
         total_videos = len(os.listdir(self.frames_folder))
@@ -458,6 +458,7 @@ class SearchEngine(object):
 
         processes = []
 
+        blocks = []
         start_idx = 0
         end_idx = 0
         for job_id in range(self.n_jobs):
@@ -469,15 +470,21 @@ class SearchEngine(object):
 
             end_idx = start_idx + batch_size
             print('BLock Interval:', start_idx, end_idx)
+            blocks.append((start_idx, end_idx))
+        
+        arg = [(query, feature_folder, isStage3, block) for block in blocks]
+        with multiprocessing.get_context("spawn").Pool() as pool:
+            result = pool.starmap(self.uniprocess_stage_1, arg)
 
-            p = multiprocessing.Process(target=self.uniprocess_stage_1,
-                                        args=(query, feature_folder,
-                                              isStage3, (start_idx, end_idx)))
-            processes.append(p)
-            p.start()
+        #     p = multiprocessing.Process(target=self.uniprocess_stage_1,
+        #                                 args=(query, feature_folder,
+        #                                       isStage3, (start_idx, end_idx)))
+        #     p.daemon = True
+        #     processes.append(p)
+        #     p.start()
 
-        for process in processes:
-            process.join()
+        # for process in processes:
+        #     process.join()
 
     def stage_1(self, query, feature_folder, isStage3=False, multiprocess=False):
         if multiprocess:
@@ -818,7 +825,6 @@ if __name__ == '__main__':
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     names = ["chelsea", "darrin", "garry", "heather",
              "jack", "jane", "max", "minty", "mo", "zainab"]
-    names = ["zainab"]
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
