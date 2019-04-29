@@ -10,6 +10,7 @@ import pickle
 import numpy as np
 import cv2
 import time
+import sys
 
 
 def extract_feature_from_face(model, face):
@@ -46,9 +47,8 @@ def extract_database_faces_features(model, root_frames_folder, root_faces_folder
     begin = time.time()
     num_of_new_files = 0
 
-    for videoId in range(244):
+    for videoId in range(2):
         video_features_dict = dict()
-        video_features = []
 
         frames_folder = os.path.join(
             root_frames_folder, 'video' + str(videoId))
@@ -56,8 +56,8 @@ def extract_database_faces_features(model, root_frames_folder, root_faces_folder
         feature_folder = os.path.join(
             root_feature_folder, 'video' + str(videoId) + '.pkl')
 
-        if not os.path.exists(feature_folder):
-            os.mkdir(feature_folder)
+        # if not os.path.exists(feature_folder):
+        #     os.mkdir(feature_folder)
 
         faces_files = [(file, os.path.join(faces_folder, file))
                        for file in natsorted(os.listdir(faces_folder))]
@@ -73,6 +73,7 @@ def extract_database_faces_features(model, root_frames_folder, root_faces_folder
                 break
 
             ##################### MAIN #####################
+            video_features = []
             file_name = faces_file[0]
             file_path = faces_file[1]
             shot = file_name.split('.')[0]
@@ -116,6 +117,7 @@ def extract_database_faces_features(model, root_frames_folder, root_faces_folder
 
 
 if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     with open("../cfg/config.json", "r") as f:
         cfg = json.load(f)
     with open('../cfg/search_config.json', 'r') as f:
