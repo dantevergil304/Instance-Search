@@ -74,8 +74,6 @@ def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, o
                 print("\t\t[-] No faces were detected in frame")
 
             for index, box in enumerate(boxes):
-                # if box[4] < 0.9:  # remove faces with low confidence
-                #     continue
                 x1, y1, x2, y2 = int(box[0]), int(
                     box[1]), int(box[2]), int(box[3])
                 if y1 < 0:
@@ -122,18 +120,24 @@ if __name__ == "__main__":
         config = json.load(f)
 
     frames_folder = os.path.abspath(
-        config["processed_data"]["3fps_jpg_frames_folder"])
+        config["processed_data"]["frames_folder"])
     faces_folder = os.path.abspath(
-        config["processed_data"]["3fps_jpg_faces_folder"])
+        config["processed_data"]["faces_folder"])
     landmarks_folder = os.path.abspath(
-        config["processed_data"]["3fps_jpg_landmarks_folder"])
+        config["processed_data"]["landmarks_folder"])
 
-    for vidId in range(0, 244):
+    for vidId in range(82, 244):
         curVidFrameDir = os.path.join(frames_folder, 'video' + str(vidId))
         curVidFaceDir = os.path.join(faces_folder, 'video' + str(vidId))
         curVidLandmarkDir = os.path.join(
             landmarks_folder, 'video' + str(vidId))
 
+        if not os.path.exists(curVidFrameDir):
+            continue
+        if not os.path.exists(curVidFaceDir):
+            os.mkdir(curVidFaceDir)
+        if not os.path.exists(curVidLandmarkDir):
+            os.mkdir(curVidLandmarkDir)
         print('Video ID:', vidId)
         # print('Frames Directory:', curVidFrameDir)
         # print('Faces Directory:', curVidFaceDir)

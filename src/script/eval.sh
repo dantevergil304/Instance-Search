@@ -1,12 +1,6 @@
-for i in $(ls ../../result/config_max_mean)
+for i in $(ls ../../result/config_fc7_2018_peking)
 do
     echo ${i}
-    echo "MAX_MEAN"
-    ../../../trec_eval/trec_eval -m map ../../../Topics\ and\ GTs/gt_final.txt ../../result/config_max_mean/${i}/stage_1_trec_eval.txt
-    echo "MEAN_MAX"
-    ../../../trec_eval/trec_eval -m map ../../../Topics\ and\ GTs/gt_final.txt ../../result/config_1/${i}/stage_1_trec_eval.txt
-    echo "MAX_MAX"
-    ../../../trec_eval/trec_eval -m map ../../../Topics\ and\ GTs/gt_final.txt ../../result/config_max_max/${i}/stage_1_trec_eval.txt
+    ../../../trec_eval/trec_eval -m P.500 ../../../visualize-tools-master/person_gt_final.txt ../../result/config_fc7_2018_all_query_faces/${i}/stage\ 1/result.txt
    
-    echo "\n" 
 done

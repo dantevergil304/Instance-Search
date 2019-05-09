@@ -2,6 +2,9 @@ import cv2
 import numpy as np
 import re
 import math
+import glob
+import os
+import pickle
 
 
 def get3dModelPoints():
@@ -21,6 +24,19 @@ def get3dModelPoints():
 
 def getFaceRotationMatrix(image_points, image_size):
     # 3d model points
+    # pts=get3dModelPoints()
+    # model_points=np.array([
+    #     # Left eye
+    #     (pts[15][0], (pts[15][1]+pts[19][1])/2, -(pts[15][2]+pts[19][2])/2),
+    #     # Right eye
+    #     (pts[23][0], (pts[23][1]+pts[27][1])/2, -(pts[23][2]+pts[27][2])/2),
+    #     # Nose tip
+    #     pts[52],
+    #     # Left mouth corner
+    #     pts[43],
+    #     # Right mouth corner
+    #     pts[39]
+    # ])
     # model_points = np.array([
     #     (-175.0, 170.0, -130.0),   # Left eye
     #     (175.0, 170.0, -130.0),    # Right eye
@@ -28,18 +44,12 @@ def getFaceRotationMatrix(image_points, image_size):
     #     (-150.0, -150.0, -125.0),  # Left mouth corner
     #     (150.0, -150.0, -125.0)    # Right mouth corner
     # ])
-    pts = get3dModelPoints()
     model_points = np.array([
-        # Left eye
-        (pts[15][0], (pts[15][1]+pts[19][1])/2, -(pts[15][2]+pts[19][2])/2),
-        # Right eye
-        (pts[23][0], (pts[23][1]+pts[27][1])/2, -(pts[23][2]+pts[27][2])/2),
-        # Nose tip
-        pts[52],
-        # Left mouth corner
-        pts[43],
-        # Right mouth corner
-        pts[39]
+        (-36.9522, 39.3518, 47.1217),
+        (35.446, 38.4345, 47.6468),
+        (-0.0697709, 18.6015, 87.9695),
+        (-27.6439, -29.6388, 73.8551),
+        (28.7793, -29.2935, 72.7329),
     ])
 
     # camera intrinsic parameters
@@ -61,30 +71,6 @@ def getFaceRotationMatrix(image_points, image_size):
     return rotation_matrix, translation_vector
 
 
-def rmat2agl(r):
-    if r[0][2] < 1:
-        if r[0][2] > -1:
-            thetaY = math.asin(r[0][2])
-            thetaX = math.atan2(-r[1][2], r[2][2])
-            thetaZ = math.atan2(-r[0][1], r[0][0])
-        else:  # r[0][2] = -1
-            # Not a unique solution: thetaZ - thetaX = atan2(r[1][0], r[1][1])
-            thetaY = -math.pi/2
-            thetaX = -math.atan2(r[1][0], r[1][1])
-            thetaZ = 0
-    else:  # r[0][2] = +1
-        # Not a unique solution: thetaZ + thetaX = atan2(r[1][0], r[1][1])
-        thetaY = math.pi/2
-        thetaX = math.atan2(r[1][0], r[1][1])
-        thetaZ = 0
-
-    thetaX = thetaX * 180 / math.pi
-    thetaY = thetaY * 180 / math.pi
-    thetaZ = thetaZ * 180 / math.pi
-
-    return [thetaX, thetaY, thetaZ]
-
-
 def getFaceRotationAngles(image_points, image_size):
     # return rmat2agl(getFaceRotationMatrix(image_points, image_size)[0])
     rmat, tvec = getFaceRotationMatrix(image_points, image_size)
@@ -93,5 +79,54 @@ def getFaceRotationAngles(image_points, image_size):
     return np.squeeze(eulerAngles)
 
 
+def isGoodFace_solvePnp(landmark_points, image_size, thresh=55):
+    eulerAngles = getFaceRotationAngles(landmark_points, image_size)
+    if abs(eulerAngles[1]) < thresh:
+        return True
+    return False
+
+
 if __name__ == '__main__':
-    pass
+    for topic_dir in glob.glob('../topics_data/origin-queries/*'):
+        topic_name = os.path.basename(topic_dir)
+        for img_path in glob.glob(os.path.join(topic_dir, '*png')):
+            img_name = os.path.basename(img_path)
+
+            img_shape = cv2.imread(os.path.join(
+                '../topics_data/topics-frames/', topic_name, img_name)).shape
+            face_img = cv2.imread(img_path)
+
+            with open(os.path.join(topic_dir, os.path.splitext(img_name)[0] + '_bb_landmark.pkl'), 'rb') as f:
+                bbs, landmarks = pickle.load(f)
+
+            image_points = []
+
+            for i in range(int(len(landmarks)/2.)):
+                x, y = int(landmarks[i]), int(landmarks[i+5])
+                image_points.append((x, y))
+
+                # draw landmark
+                cv2.circle(
+                    face_img, (x - bbs[0], y - bbs[1]), 2, (0, 255, 0), 2)
+
+            image_points = np.array(image_points, dtype='double')
+
+            eulerAngles = getFaceRotationAngles(image_points, img_shape)
+
+            print('[+] Face Rotation Euler angles')
+            print(eulerAngles)
+
+            save_path = '../topics_data/processed-queries/solvePnP'
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+
+            if abs(eulerAngles[1]) < 55:
+                goodFaces_save_path = os.path.join(save_path, 'goodFaces')
+                os.makedirs(goodFaces_save_path, exist_ok=True)
+                cv2.imwrite(os.path.join(goodFaces_save_path, os.path.splitext(
+                    img_name)[0] + f'_eulerAngles={eulerAngles}.png'), face_img)
+            else:
+                badFaces_save_path = os.path.join(save_path, 'badFaces')
+                os.makedirs(badFaces_save_path, exist_ok=True)
+                cv2.imwrite(os.path.join(badFaces_save_path, os.path.splitext(
+                    img_name)[0] + f'_eulerAngles={eulerAngles}.png'), face_img)

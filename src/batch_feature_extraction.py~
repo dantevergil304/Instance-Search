@@ -12,20 +12,19 @@ import time
 import json
 import sys
 import multiprocessing
-import math
 
 
-def BatchGenerator(faces_path, frames_path, video_face_file, VIDEO_ID=0):
+def BatchGenerator(faces_path, frames_path, VIDEO_ID=0, block_interval=None):
     x = []
     num_faces = 0
     shots_order_and_info = []
     num_files = 0
-    # generate_batch_t = time.time()
-    # batch_id = 0
+    generate_batch_t = time.time()
+    batch_id = 0
 
-    # video_face_files = natsorted(glob.glob(os.path.join(
-    #     faces_path, 'video' + str(VIDEO_ID), '*pickle')))
-    for file in [video_face_file]:
+    video_face_files = natsorted(glob.glob(os.path.join(
+        faces_path, 'video' + str(VIDEO_ID), '*pickle')))[block_interval[0]:block_interval[1]]
+    for file in video_face_files:
         num_files += 1
 
         # print('Processing %d shot(s)' % (num_files))
@@ -71,40 +70,8 @@ def BatchGenerator(faces_path, frames_path, video_face_file, VIDEO_ID=0):
         if len_bbs > 0:
             shots_order_and_info.append((shot_id, len_bbs))
 
-    # if x != []:
-    #     x = np.asarray(x).reshape((-1, 224, 224, 3))
-    #     print('Generate batch %d elapses: %d seconds' %
-    #           (batch_id, time.time() - generate_batch_t))
-    #     yield x
-
-    # yield shots_order_and_info
-    return x, shots_order_and_info
-
-
-def multiprocessBatchGenerator(faces_path, frames_path, VIDEO_ID=0, shots_per_batch=200):
-    video_face_files = natsorted(glob.glob(os.path.join(
-        faces_path, 'video' + str(VIDEO_ID), '*pickle')))
-    num_video_face_files = len(video_face_files)
-
-    shots_order_and_info = []
-    for batch_id in range(math.ceil(num_video_face_files / shots_per_batch)):
-        start_idx = batch_id * shots_per_batch
-        end_idx = start_idx + shots_per_batch
-        if end_idx > num_video_face_files:
-            end_idx = num_video_face_files
-        print('Block Interval:', (start_idx, end_idx))
-
-        generate_batch_t = time.time()
-        arg = [(faces_path, frames_path, video_face_files[shot_idx], VIDEO_ID)
-               for shot_idx in range(start_idx, end_idx)]
-        with multiprocessing.get_context("spawn").Pool(processes=15) as pool:
-            result = pool.starmap(BatchGenerator, arg)
-
-        x, shot_order_and_info = zip(*result)
-        shots_order_and_info.extend(list(shot_order_and_info))
-        x = [item for sublist in x for item in sublist]
-        x = np.array(x).reshape((-1, 224, 224, 3))
-
+    if x != []:
+        x = np.asarray(x).reshape((-1, 224, 224, 3))
         print('Generate batch %d elapses: %d seconds' %
               (batch_id, time.time() - generate_batch_t))
         yield x
@@ -112,19 +79,47 @@ def multiprocessBatchGenerator(faces_path, frames_path, VIDEO_ID=0, shots_per_ba
     yield shots_order_and_info
 
 
+def multiprocessBatchGenerator(faces_path, frames_path, shots_per_batch=20, VIDEO_ID=0, n_jobs=20):
+    video_face_files = natsorted(glob.glob(os.path.join(
+        faces_path, 'video' + str(VIDEO_ID), '*pickle')))
+    for idx in range(len(video_face_files)):
+
+        avg_shot_per_process = shots_per_batch // n_jobs
+        remain_shots = shots_per_batch % n_jobs
+
+        blocks = []
+        start_idx = 0
+        end_idx = 0
+
+        for job_id in range(n_jobs):
+            start_idx = end_idx
+
+            batch_size = avg_shot_per_process
+            if job_id < remain_shots:
+                batch_size += 1
+
+            end_idx = start_idx + batch_size
+            print('Block Interval:', start_idx, end_idx)
+            blocks.append((start_idx, end_idx))
+
+        arg = [(faces_path, frames_path, VIDEO_ID, block) for block in blocks]
+        with multiprocessing.get_context("spawn").Pool() as pool:
+            result = pool.starmap(BatchGenerator, arg)
+
+
 def extract_feat(model, faces_path, frames_path, order_info_save_path, video_id):
     begin = time.time()
 
-    for batch in multiprocessBatchGenerator(faces_path, frames_path, video_id):
+    for batch in BatchGenerator(faces_path, frames_path, video_id):
         if not isinstance(batch, np.ndarray):
             with open(os.path.join(order_info_save_path, 'order_and_info' + str(video_id) + '.pkl'), 'wb') as f:
-                 pickle.dump(batch, f)
+                pickle.dump(batch, f)
             continue
         print("Batch shape: %d" % batch.shape[0])
 
         predict_t = time.time()
 
-        feat = model.predict(batch, batch_size=1)
+        feat = model.predict(batch, batch_size=128)
         yield feat
 
         print('Predict time: %d seconds' % (time.time() - predict_t))
@@ -136,8 +131,7 @@ def extract_feat(model, faces_path, frames_path, order_info_save_path, video_id)
 
 
 if __name__ == '__main__':
-    # os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0, 2'
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     with open("../cfg/config.json", "r") as f:
         cfg = json.load(f)
     with open('../cfg/search_config.json', 'r') as f:
@@ -154,10 +148,8 @@ if __name__ == '__main__':
     model = Model(vgg_model.input, out)
     print("[+] Loaded VGGFace model")
 
-    start_t = time.time()
-    for video_id in range(0, 244):
+    for video_id in range(2):
         print('\nProcessing video %d' % video_id)
-        extract_feat(model, faces_folder, frames_folder, '../features/order_and_info', video_id)
         all_features = None
         for feat in extract_feat(model, faces_folder, frames_folder, '../features/order_and_info', video_id):
             if all_features is None:
@@ -167,6 +159,3 @@ if __name__ == '__main__':
 
         np.save(os.path.join(default_feature_folder, 'video' +
                              str(video_id) + '_feat.npy'), all_features)
-
-    print('TOTAL ELAPSED TIME: %d minutes %d seconds' %
-          ((time.time() - start_t)//60, (time.time() - start_t) % 60))

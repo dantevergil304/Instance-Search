@@ -12,10 +12,11 @@ from keras.models import load_model
 from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity, write_result_to_file, write_result, create_stage_folder, adjust_size_different_images, create_image_label, max_mean_similarity, max_max_similarity
 from scipy import stats
 from PIL import Image
-from poseEstimate import getFaceRotationAngles
+from checkGBFace_solvePnP import getFaceRotationAngles
 from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 from natsort import natsorted
+from checkGBFace import GoodFaceChecker
 
 import numpy as np
 import json
@@ -64,6 +65,10 @@ class SearchEngine(object):
         self.svm_training_data_folder = os.path.abspath(
             os.path.join(self.cfg["training_data"]["SVM_data"], self.cfg["config"]))
 
+        # Set up config
+        self.rmBF_method = self.search_cfg["rmBadFacesMethod"]
+        self.rmBF_landmarks_params = self.search_cfg["rmBadFacesLandmarkBasedParams"]
+
         # Making directories if not exists
         os.makedirs(self.result_path, exist_ok=True)
         os.makedirs(self.fine_tune_feature_folder, exist_ok=True)
@@ -77,6 +82,8 @@ class SearchEngine(object):
         self.fine_tune_vgg = None
         self.svm_clf = None
         self.n_jobs = self.search_cfg['n_jobs']
+        self.good_face_checker = GoodFaceChecker(
+            method=self.rmBF_landmarks_params["check_face_pose_method"], checkBlur=(self.rmBF_landmarks_params["landmark_type"]=="True"))
 
     def remove_bad_faces(self, query):
         '''
@@ -372,8 +379,8 @@ class SearchEngine(object):
         result = []
         print("[+] Current feature folder : %s\n" % (feature_folder))
         video_feature_files = \
-            [(file, os.path.join(feature_folder, file))
-                       for file in os.listdir(feature_folder)]
+            natsorted([(file, os.path.join(feature_folder, file))
+                       for file in os.listdir(feature_folder)])
         # shot_feature_files = [(os.path.basename(path), path) for path in glob.iglob(
         #     feature_folder + '/**/*.pickle', recursive=True)]
 
@@ -462,7 +469,7 @@ class SearchEngine(object):
         start_idx = 0
         end_idx = 0
         for job_id in range(self.n_jobs):
-            start_idx = end_idx 
+            start_idx = end_idx
 
             batch_size = avg_video_per_process
             if job_id < remain_videos:
@@ -471,7 +478,7 @@ class SearchEngine(object):
             end_idx = start_idx + batch_size
             print('BLock Interval:', start_idx, end_idx)
             blocks.append((start_idx, end_idx))
-        
+
         arg = [(query, feature_folder, isStage3, block) for block in blocks]
         with multiprocessing.get_context("spawn").Pool() as pool:
             result = pool.starmap(self.uniprocess_stage_1, arg)
@@ -586,20 +593,39 @@ class SearchEngine(object):
     def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, multiprocess=False):
 
         root_result_folder = os.path.join(self.result_path, self.query_name)
+        os.makedirs(root_result_folder, exist_ok=True)
         stage_1_execution_time = 0
         stage_2_execution_time = 0
         stage_3_execution_time = 0
 
         # Detect faces in query
-        query_faces, bb = detect_face_by_path(query, mask)
+        query_faces, bb, landmarks = detect_face_by_path(query, mask)
         K.clear_session()
         print("[+] Detected faces from query")
+
+        # Convert landmark from MTCNN format to list of landmark points
+        landmark_list = []
+        for landmark in landmarks:
+            landmark_points = []
+            for i in range(int(len(landmark)/2.)):
+                    x, y = int(landmark[i]), int(landmark[i+5])
+
+                    landmark_points.append((x, y))
+            landmark_list.append(np.array(landmark_points, dtype='double'))
+
 
         faces_v = list(zip(*query_faces))[0]
         v_faces = adjust_size_different_images(faces_v, 341, 341/2)
 
+        # Get size of each frame in query
+        frames_size = []
+        for qpath in query:
+            frame = cv2.imread(qpath)
+            frames_size.append(frame.shape[:2])
+
         # Apply super resolution
-        super_res_faces_path = os.path.join(root_result_folder, 'super_res_faces.pkl')
+        super_res_faces_path = os.path.join(
+            root_result_folder, 'super_res_faces.pkl')
         faces_sr = []
         if not os.path.exists(super_res_faces_path):
             faces_sr = []
@@ -651,7 +677,23 @@ class SearchEngine(object):
         K.clear_session()
         print("[+] Extracted feature of query images")
 
-        query_faces = self.remove_bad_faces(faces_features)
+        # Remove Bad Faces in query
+        if self.rmBF_method == 'peking':
+            query_faces = self.remove_bad_faces(faces_features)
+        elif self.rmBF_method == 'landmark_based':
+            if self.rmBF_landmarks_params['landmark_type'] == 'dlib':
+                query_faces = faces_features
+                for idx, (face, frame_size) in enumerate(zip(faces_v, frames_size)):
+                    if face is not None:
+                        if not self.good_face_checker.isGoodFace(face, frame_size):
+                            query_faces[idx] = None
+            elif self.rmBF_landmarks_params['landmark_type'] == 'mtcnn':
+                query_faces = faces_features
+                for idx, (face, frame_size, landmark) in enumerate(zip(faces_v, frames_size, landmark_list)):
+                    if face is not None:
+                        if not self.good_face_checker.isGoodFace(face, frame_size, landmark):
+                            query_faces[idx] = None
+            
 
         # Visulize the query after remove bad faces
         temp = []
@@ -825,6 +867,9 @@ if __name__ == '__main__':
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     names = ["chelsea", "darrin", "garry", "heather",
              "jack", "jane", "max", "minty", "mo", "zainab"]
+    # names = ["chelsea", "garry", "heather",
+    #          "jack", "jane", "minty", "mo", "zainab"]
+    # names = ['chelsea']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:

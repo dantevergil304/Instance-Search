@@ -16,10 +16,10 @@ def detect_face_by_image(query, masks):
     - query: list of query images
     - masks: list of mask images for each query
     Returns:
-    - ret: list of detected faces in query. For each image in query,
+    - faces: list of detected faces in query. For each image in query,
     we just take the best face. In case no face was detected, skip.
-    - result: list of resulting images after applying mask, having the
-    same size as ret.
+    - bbs_coord: list of bbox coordinate of the return faces.
+    - landmarks_coord: list of landmarks coordinate of the return faces.
     '''
     # TF session
     sess = tf.Session()
@@ -30,19 +30,20 @@ def detect_face_by_image(query, masks):
     threshold = [0.6, 0.7, 0.7]
     factor = 0.709
 
-    ret = []
+    faces = []
     bbs_coord = []
-    # result = []
+    landmarks_coord = []
     for image, mask in zip(query, masks):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         im_height, im_width = image.shape[0], image.shape[1]
 
         # detected faces
-        detected_faces, _ = detect_face.detect_face(
+        detected_faces, detected_landmark = detect_face.detect_face(
             image, minsize, pnet, rnet, onet, threshold, factor)
         best_bbox = None
+        best_landmark = None
         best_overlap = 0
-        for face_info in detected_faces:
+        for face_info, landmark in zip(detected_faces, detected_landmark.transpose()):
             x, y, _x, _y = [int(coord) for coord in face_info[:4]]
             bbox_mask = np.zeros((im_height, im_width), dtype=np.uint8)
             cv2.rectangle(bbox_mask, (x, y), (_x, _y), 255, cv2.FILLED)
@@ -54,10 +55,10 @@ def detect_face_by_image(query, masks):
 
             if overlap > best_overlap:
                 best_bbox = face_info
+                best_landmark = landmark
                 best_overlap = overlap
 
         # Result image after applying mask
-        # mask_img = cv2.bitwise_and(image, image, mask=mask)
         if best_bbox is not None:
             x, y, _x, _y = [int(coord) for coord in best_bbox[:4]]
             if x < 0:
@@ -70,19 +71,16 @@ def detect_face_by_image(query, masks):
                 _y = im_height
 
             face = image[y: _y, x: _x]
-            #cv2.imshow('face extr query', face)
-            # cv2.waitKey()
-            # cv2.destroyAllWindows()
             face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)
-            ret.append(face)
+            faces.append(face)
             bbs_coord.append((x, y, _x, _y))
-            # cv2.rectangle(mask_img, (x, y), (_x, _y), (0, 255, 0), 2)
-            # result.append(mask_img)
+            landmarks_coord.append(best_landmark)
         else:
-            ret.append(None)
+            faces.append(None)
             bbs_coord.append(None)
+            landmarks_coord.append(None)
 
-    return ret, bbs_coord  # , result
+    return faces, bbs_coord, landmarks_coord
 
 
 def detect_face_by_path(query_path, masks_path):
@@ -97,12 +95,8 @@ def detect_face_by_path(query_path, masks_path):
     '''
     query = [cv2.imread(im_path) for im_path in query_path]
     masks = [cv2.imread(mask_path, 0) for mask_path in masks_path]
-    ret, bbs_coord = detect_face_by_image(query, masks)
-    # for res, path in zip(result, query_path):
-    # im_name = path.split('/')[-1]
-    # res = cv2.cvtColor(res, cv2.COLOR_RGB2BGR)
-    # cv2.imwrite('./test_output/detect_result/' + im_name, res)
-    return zip(ret, query_path, masks_path), bbs_coord
+    faces, bbs_coord, landmarks_coord = detect_face_by_image(query, masks)
+    return zip(faces, query_path, masks_path), bbs_coord, landmarks_coord
 
 
 if __name__ == "__main__":

@@ -52,7 +52,8 @@ def apply_super_res(true_img, model_type='sr', scale_factor=2, save_intermediate
 
 
 if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     true_img = cv2.imread(
-        '../data/processed_data/faces/queries/detect_before_mask/archie.2.face.bmp')
+        '../data/raw_data/queries/chelsea.1.src.png')
     apply_super_res(true_img)
     pass

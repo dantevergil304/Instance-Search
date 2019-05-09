@@ -9,6 +9,9 @@ from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 
 import cv2
 import numpy as np
+import pickle
+import sys
+import os
 
 
 def create_regularized_model(model, WEIGHT_DECAY):
@@ -151,7 +154,7 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
     return finetune_model
 
 
-def extract_face_features(model_path, faces_list):
+def extract_feature_from_face_list(model_path, faces_list):
     model = load_model(model_path)
 
     feature_extractor = Model(model.input, model.get_layer('fc6').output)
@@ -164,3 +167,9 @@ def extract_face_features(model_path, faces_list):
     X = np.reshape(resized_faces_list, (-1, 224, 224, 3))
 
     return feature_extractor.predict(X, batch_size=20, verbose=1)
+
+if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
+    with open('../data/training_data/vgg_data/config_fc7/9104/training_data.pkl', 'rb') as f:
+        data = pickle.load(f)
+    fine_tune(data, './fine_tuned_model.h5', numStep=None, batchSize=15, eps=30) 

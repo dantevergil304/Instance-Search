@@ -2,21 +2,19 @@
     "raw_data" : {
         "raw_videos_folder" : "../data/raw_data/videos/",
         "raw_shots_folder" : "../data/raw_data/shots/",
-	    "queries_folder" : "../data/raw_data/queries/",
-        "num_used_videos" : 2,
-        "num_videos " : 240,
-        "num_shots " : 471523
+	    "queries_folder" : "../data/raw_data/queries/"
     },
 
     "processed_data" : {
-        "frames_folder" : "../data/processed_data/frames/",
-        "faces_folder" : "../data/processed_data/faces/",
+        "frames_folder" : "../data/processed_data/3fps_jpg_frames_subset_2018/",
+        "faces_folder" : "../data/processed_data/3fps_jpg_faces_subset_2018_0.9/",
+	    "landmarks_folder" : "../data/processed_data/3fps_jpg_landmarks_subset_2018_0.9/",
 	    "queries_face_folder" : "../data/processed_data/faces/queries"
     },
 
     "training_data":{
-        "data" : "../training_data/data/",
-        "visualized_data": "../training_data/visualized_training_data/"
+	"VGG_data" : "../data/training_data/vgg_data/",
+        "SVM_data" : "../data/training_data/svm_data/"
     },
 
     "models" : {
@@ -28,18 +26,16 @@
     },
 
     "features" : {
-        "VGG_default_features" : "../features/VGG_Face_default/",
-        "VGG_fine_tuned_features" : "../features/VGG_Face_fine_tuned/"
+        "VGG_default_features" : "../features/VGG_Face_default_subset_2018_MTCNNscore0.9/",
+        "VGG_fine_tuned_features" : "../features/VGG_Face_fine_tuned_MTCNNscore0.9/"
     },
 
     "3rd_party" : {
         "MTCNN" : "../3rd_party/ServiceMTCNN/",
-	"Image_Super_Resolution" : "../3rd_party/Image-Super-Resolution/"
+	    "Image_Super_Resolution" : "../3rd_party/Image-Super-Resolution/"
     },
 
-    "result" : {
-        "stage_1": "../result/result_without_fine_tune_images/",
-        "stage_2": "../result/result_with_fine_tune_images/",
-	"stage_3": "../result/result_with_svm_images/"
-    }    
+    "result" : "../result/",
+    
+    "config" : "config_fc7_2018_Thua_filter_without_check_blur_MTCNNlandmark/"
 }
