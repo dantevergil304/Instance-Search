@@ -21,11 +21,18 @@ class GoodFaceChecker(object):
             gray = cv2.cvtColor(face_image, cv2.COLOR_RGB2GRAY)
             landmark_predictor = dlib.shape_predictor(
                 "../models/dlib_facial_landmark_detector/shape_predictor_68_face_landmarks.dat")
-            rect = dlib.rectangle(0, 0, face_image.shape[0], face_image.shape[1])
+            rect = dlib.rectangle(
+                0, 0, face_image.shape[0], face_image.shape[1])
             shape = landmark_predictor(gray, rect)
             shape = face_utils.shape_to_np(shape)
             landmark_points = np.array([shape[38], shape[46],
-                               shape[30], shape[60], shape[54]], dtype='double')
+                                        shape[30], shape[60], shape[54]], dtype='double')
+        # for lm in landmark_points:
+        #     cv2.circle(face_image, (int(lm[0]), int(lm[1])), 2, (0, 255, 0), 2)
+
+        # cv2.imshow('face', face_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         if self.method == 'solvePnP':
             return isGoodFace_solvePnp(landmark_points, original_frame_size)

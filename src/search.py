@@ -598,6 +598,12 @@ class SearchEngine(object):
         stage_2_execution_time = 0
         stage_3_execution_time = 0
 
+        # Get size of each frame in query
+        frames_size = []
+        for qpath in query:
+            frame = cv2.imread(qpath)
+            frames_size.append(frame.shape[:2])
+
         # Detect faces in query
         query_faces, bb, landmarks = detect_face_by_path(query, mask)
         K.clear_session()
@@ -605,23 +611,19 @@ class SearchEngine(object):
 
         # Convert landmark from MTCNN format to list of landmark points
         landmark_list = []
-        for landmark in landmarks:
+        for landmark, bb_coord in zip(landmarks, bb):
+            if landmark is None:
+                continue
             landmark_points = []
             for i in range(int(len(landmark)/2.)):
                     x, y = int(landmark[i]), int(landmark[i+5])
 
-                    landmark_points.append((x, y))
+                    landmark_points.append((x - bb_coord[0], y - bb_coord[1]))
             landmark_list.append(np.array(landmark_points, dtype='double'))
 
 
         faces_v = list(zip(*query_faces))[0]
         v_faces = adjust_size_different_images(faces_v, 341, 341/2)
-
-        # Get size of each frame in query
-        frames_size = []
-        for qpath in query:
-            frame = cv2.imread(qpath)
-            frames_size.append(frame.shape[:2])
 
         # Apply super resolution
         super_res_faces_path = os.path.join(
@@ -864,27 +866,25 @@ if __name__ == '__main__':
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     query_folder = "../data/raw_data/queries/"
-    # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    names = ["chelsea", "darrin", "garry", "heather",
-             "jack", "jane", "max", "minty", "mo", "zainab"]
-    # names = ["chelsea", "garry", "heather",
-    #          "jack", "jane", "minty", "mo", "zainab"]
-    # names = ['chelsea']
+    names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
+    # names = ["chelsea", "darrin", "garry", "heather",
+    #          "jack", "jane", "max", "minty", "mo", "zainab"]
+    # names = ["9104"]
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
         query = [
-            name + ".1.src.png",
-            name + ".2.src.png",
-            name + ".3.src.png",
-            name + ".4.src.png"
+            name + ".1.src.bmp",
+            name + ".2.src.bmp",
+            name + ".3.src.bmp",
+            name + ".4.src.bmp"
 
         ]
         masks = [
-            name + ".1.mask.png",
-            name + ".2.mask.png",
-            name + ".3.mask.png",
-            name + ".4.mask.png"
+            name + ".1.mask.bmp",
+            name + ".2.mask.bmp",
+            name + ".3.mask.bmp",
+            name + ".4.mask.bmp"
         ]
 
         query = [os.path.join(query_folder, q) for q in query]
