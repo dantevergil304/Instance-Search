@@ -1,19 +1,21 @@
 from checkGBFace_solvePnP import isGoodFace_solvePnp
 from checkGBFace_landmarkDistance import isGoodFace_landmarkDistanceBased
+from checkGBFace_classifier import isGoodFace_classifier
 from checkBlurFace import isBlurFace
 from imutils import face_utils
 
 import dlib
 import cv2
 import numpy as np
+import json
 
 
 class GoodFaceChecker(object):
-    def __init__(self, method='solvePnP', checkBlur=False):
-        self.method = method
+    def __init__(self, method='landmark_based', checkBlur=False):
+        self.method = method  # Main Method
         self.checkBlur = checkBlur
 
-    def isGoodFace(self, face_image, original_frame_size, landmark_points=None):
+    def isGoodFace(self, face_image, original_frame_size=None, landmark_points=None, classifier_type=None):
         if self.checkBlur and isBlurFace(face_image):
             return False
 
@@ -34,7 +36,13 @@ class GoodFaceChecker(object):
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        if self.method == 'solvePnP':
-            return isGoodFace_solvePnp(landmark_points, original_frame_size)
-        elif self.method == 'landmarkDistance':
-            return isGoodFace_landmarkDistanceBased(landmark_points)
+        with open('../cfg/search_config.json', 'r') as f:
+            cfg = json.load(f)
+        if self.method == 'landmark_based':
+            checkFacePoseMethod = cfg['rmBadFacesLandmarkBasedParams']['check_face_pose_method']
+            if checkFacePoseMethod == 'solvePnP':
+                return isGoodFace_solvePnp(landmark_points, original_frame_size)
+            elif checkFacePoseMethod == 'landmarkDistance':
+                return isGoodFace_landmarkDistanceBased(landmark_points)
+        elif self.method == 'classifier':
+            return isGoodFace_classifier(face_image, classifier_type)

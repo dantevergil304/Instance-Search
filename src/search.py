@@ -13,7 +13,7 @@ from util import calculate_average_faces_sim, cosine_similarity, mean_max_simila
 from scipy import stats
 from PIL import Image
 from checkGBFace_solvePnP import getFaceRotationAngles
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.model_selection import cross_val_score
 from natsort import natsorted
 from checkGBFace import GoodFaceChecker
@@ -68,6 +68,8 @@ class SearchEngine(object):
         # Set up config
         self.rmBF_method = self.search_cfg["rmBadFacesMethod"]
         self.rmBF_landmarks_params = self.search_cfg["rmBadFacesLandmarkBasedParams"]
+        self.rmBF_classifier_params = self.search_cfg["rmBadFacesClassifierParams"]
+
 
         # Making directories if not exists
         os.makedirs(self.result_path, exist_ok=True)
@@ -82,8 +84,7 @@ class SearchEngine(object):
         self.fine_tune_vgg = None
         self.svm_clf = None
         self.n_jobs = self.search_cfg['n_jobs']
-        self.good_face_checker = GoodFaceChecker(
-            method=self.rmBF_landmarks_params["check_face_pose_method"], checkBlur=(self.rmBF_landmarks_params["landmark_type"]=="True"))
+        self.good_face_checker = GoodFaceChecker(method=self.rmBF_method, checkBlur=(self.rmBF_landmarks_params["is_check_blur"] == "True"))
 
     def remove_bad_faces(self, query):
         '''
@@ -616,11 +617,10 @@ class SearchEngine(object):
                 continue
             landmark_points = []
             for i in range(int(len(landmark)/2.)):
-                    x, y = int(landmark[i]), int(landmark[i+5])
+                x, y = int(landmark[i]), int(landmark[i+5])
 
-                    landmark_points.append((x - bb_coord[0], y - bb_coord[1]))
+                landmark_points.append((x - bb_coord[0], y - bb_coord[1]))
             landmark_list.append(np.array(landmark_points, dtype='double'))
-
 
         faces_v = list(zip(*query_faces))[0]
         v_faces = adjust_size_different_images(faces_v, 341, 341/2)
@@ -682,6 +682,7 @@ class SearchEngine(object):
         # Remove Bad Faces in query
         if self.rmBF_method == 'peking':
             query_faces = self.remove_bad_faces(faces_features)
+
         elif self.rmBF_method == 'landmark_based':
             if self.rmBF_landmarks_params['landmark_type'] == 'dlib':
                 query_faces = faces_features
@@ -695,9 +696,16 @@ class SearchEngine(object):
                     if face is not None:
                         if not self.good_face_checker.isGoodFace(face, frame_size, landmark):
                             query_faces[idx] = None
-            
 
-        # Visulize the query after remove bad faces
+        elif self.rmBF_method == 'classifier':
+            classifier_type = self.rmBF_classifier_params['model']
+            query_faces = faces_features
+            for idx, face in enumerate(faces_sr):
+                if face is not None:
+                    if not self.good_face_checker.isGoodFace(face, classifier_type=classifier_type):
+                        query_faces[idx] = None
+
+        # visulize the query after remove bad faces
         temp = []
         for query_face in query_faces:
             if not query_face:
@@ -866,25 +874,26 @@ if __name__ == '__main__':
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     query_folder = "../data/raw_data/queries/"
-    names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    # names = ["chelsea", "darrin", "garry", "heather",
-    #          "jack", "jane", "max", "minty", "mo", "zainab"]
+    # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
+    names = ["chelsea", "darrin", "garry", "heather",
+             "jack", "jane", "max", "minty", "mo", "zainab"]
     # names = ["9104"]
+    # names = ['chelsea']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
         query = [
-            name + ".1.src.bmp",
-            name + ".2.src.bmp",
-            name + ".3.src.bmp",
-            name + ".4.src.bmp"
+            name + ".1.src.png",
+            name + ".2.src.png",
+            name + ".3.src.png",
+            name + ".4.src.png"
 
         ]
         masks = [
-            name + ".1.mask.bmp",
-            name + ".2.mask.bmp",
-            name + ".3.mask.bmp",
-            name + ".4.mask.bmp"
+            name + ".1.mask.png",
+            name + ".2.mask.png",
+            name + ".3.mask.png",
+            name + ".4.mask.png"
         ]
 
         query = [os.path.join(query_folder, q) for q in query]
@@ -902,4 +911,4 @@ if __name__ == '__main__':
                                     save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
 
         search_engine.searching(
-            query, masks, isStage1=True, isStage2=False, isStage3=False, multiprocess=True)
+            query, masks, isStage1=False, isStage2=False, isStage3=False, multiprocess=True)
