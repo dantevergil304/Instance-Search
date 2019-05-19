@@ -82,6 +82,9 @@ def crop_generator(batches, crop_length):
         for i in range(batch_x.shape[0]):
             batch_crops[i] = random_crop(
                 batch_x[i], (crop_length, crop_length))
+
+            if np.random.rand() >= 0.5:
+                batch_crops[i] = cv2.flip(batch_crops[i], 1)
         # for img in batch_crops:
         #     cv2.imshow('fig', img)
         #     cv2.waitKey()
@@ -238,4 +241,4 @@ if __name__ == '__main__':
     with open('../data/training_data/vgg_data/config_fc7_2018_linear_svm_vgg16_pool5_gap/chelsea/training_data.pkl', 'rb') as f:
         data = pickle.load(f)
     fine_tune(data, './fine_tuned_model.h5',
-              numStep=None, batchSize=10, eps=20)
+              numStep=None, batchSize=20, eps=20)
