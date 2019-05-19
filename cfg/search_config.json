@@ -1,17 +1,22 @@
 {
     "feature_descriptor" : "fc7",
-    "n_jobs" : 20 ,
+    "n_jobs" : 22 ,
 
-    "" : "Remove bad faces method: 1. peking; 2. landmark_based",
-    "rmBadFacesMethod" : "landmark_based",
+    "" : "Remove bad faces method: 1. peking; 2. landmark_based; 3. classfier",
+    "rmBadFacesMethod" : "classifier",
     "rmBadFacesLandmarkBasedParams" :
     {
             "is_check_blur" : "False",
 
             "" : "Check face pose methods: 1. solvePnP; 2. landmarkDistance",
-            "check_face_pose_method" : "landmarkDistance",
+            "check_face_pose_method" : "solvePnP",
             
             "" : "Landmark choices: 1. mtcnn, 2. dlib",
             "landmark_type" : "mtcnn" 
+    },
+    "rmBadFacesClassifierParams" :
+    {
+	"" : "Trained model using different features: 1. linear_svm_fc7, 2. linear_svm_resnet50",
+	"model" : "linear_svm_pool5_gap"
     }
 }

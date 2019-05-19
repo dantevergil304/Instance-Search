@@ -7,7 +7,7 @@
 
     "processed_data" : {
         "frames_folder" : "../data/processed_data/3fps_jpg_frames_subset_2018/",
-        "faces_folder" : "../data/processed_data/3fps_jpg_faces_subset_2018_0.9/",
+        "faces_folder" : "../data/processed_data/3fps_jpg_faces_subset_2018_0.9_python2/",
 	    "landmarks_folder" : "../data/processed_data/3fps_jpg_landmarks_subset_2018_0.9/",
 	    "queries_face_folder" : "../data/processed_data/faces/queries"
     },
@@ -22,7 +22,8 @@
         "VGG_folder" : {
             "VGG_default_folder" : "../models/VGG_default/",
             "VGG_fine_tuned_folder" : "../models/VGG_fine_tuned/"  
-        }
+        },
+	"Good_bad_face_classifier_folder" : "../models/good_bad_face_classifier"
     },
 
     "features" : {
@@ -37,5 +38,5 @@
 
     "result" : "../result/",
     
-    "config" : "config_fc7_2018_Thua_filter_without_check_blur_MTCNNlandmark/"
+    "config" : "config_fc7_2018_linear_svm_vgg16_pool5_gap"
 }
