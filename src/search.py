@@ -17,6 +17,7 @@ from sklearn.svm import SVC, LinearSVC
 from sklearn.model_selection import cross_val_score
 from natsort import natsorted
 from checkGBFace import GoodFaceChecker
+from preprocess import extendBB
 
 import numpy as np
 import json
@@ -301,10 +302,11 @@ class SearchEngine(object):
                 for i in range(int(len(best_face_landmark)/2.)):
                     x, y = int(best_face_landmark[i]), int(best_face_landmark[i+5])
                     image_points.append((x, y))
-                    cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
+                    # cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
                 image_points = np.array(image_points, dtype='double')
 
                 x, y, _x, _y = face_data[0][1]
+                x, y, _x, _y = extendBB((height, width), x, y, _x, _y)
                 best_face = frame[y:_y, x:_x]
                 X.append(best_face)
                 landmarks_info.append((image_points, (height, width)))
@@ -352,10 +354,11 @@ class SearchEngine(object):
                 for i in range(int(len(bad_face_landmark)/2.)):
                     x, y = int(bad_face_landmark[i]), int(bad_face_landmark[i+5])
                     image_points.append((x, y))
-                    cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
+                    # cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
                 image_points = np.array(image_points, dtype='double')
 
                 x, y, _x, _y = face_data[0][1]
+                x, y, _x, _y = extendBB((height, width), x, y, _x, _y)
                 bad_face = frame[y:_y, x:_x]
                 X.append(bad_face)
                 landmarks_info.append((image_points, (height, width)))
@@ -828,7 +831,7 @@ class SearchEngine(object):
             # write_result(self.query_name, result, os.path.join(
             #     root_result_folder, "stage_2.pkl"))
             # self.sticher.save_shots_max_images(
-            #     result, stage_2_path)
+            #     result, stage_2_path
 
         if isStage3:
             print(
@@ -903,7 +906,7 @@ if __name__ == '__main__':
              "jack", "jane", "max", "minty", "mo", "zainab"]
     # names = ["9104"]
     # names = ['chelsea']
-    # names = ['darrin']
+    names = ['darrin']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
