@@ -905,8 +905,8 @@ if __name__ == '__main__':
     names = ["chelsea", "darrin", "garry", "heather",
              "jack", "jane", "max", "minty", "mo", "zainab"]
     # names = ["9104"]
-    # names = ['chelsea']
-    names = ['darrin']
+    names = ['chelsea']
+    # names = ['darrin']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:

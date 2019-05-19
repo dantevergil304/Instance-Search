@@ -12,6 +12,7 @@ import numpy as np
 import pickle
 import sys
 import os
+import tensorflow as tf
 
 
 def create_regularized_model(model, WEIGHT_DECAY):
@@ -76,11 +77,50 @@ def crop_generator(batches, crop_length):
 
     while True:
         batch_x, batch_y = next(batches)
-        batch_crops = np.zeros((batch_x.shape[0], crop_length, crop_length, 3))
+        batch_crops = np.zeros(
+            (batch_x.shape[0], crop_length, crop_length, 3), dtype=np.uint8)
         for i in range(batch_x.shape[0]):
             batch_crops[i] = random_crop(
                 batch_x[i], (crop_length, crop_length))
+        # for img in batch_crops:
+        #     cv2.imshow('fig', img)
+        #     cv2.waitKey()
+        #     cv2.destroyAllWindows()
         yield (batch_crops, batch_y)
+
+
+def ImageGeneratorVGGFace(X, y, batch_size):
+    # Params:
+    # - X: list of face images with different shapes
+    # - y: list of labels
+    while True:
+        batchIdx = np.random.choice(len(X), size=batch_size)
+        batchX = []
+        batchY = []
+
+        # rescale so that the smaller of width and height is 256
+        for idx in batchIdx:
+            img = X[idx]
+            label = y[idx]
+
+            height, width, _ = img.shape
+            ratio = width / height
+            width = 256 if width < height else 256*ratio
+            height = width / ratio
+
+            img = cv2.resize(img, (int(width), int(height)))
+
+            # cv2.imshow('figure', img)
+            # cv2.waitKey()
+            # cv2.destroyAllWindows()
+
+            batchX.append(img)
+            batchY.append(label)
+
+        batchX = np.array(batchX)
+        batchY = np.array(batchY)
+
+        yield (batchX, batchY)
 
 
 def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
@@ -126,28 +166,46 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
 
     # Convert train data to numpy type
     #X_train_crop = cropListImage(X_train, 224)
-    train_images = np.reshape(X_train, (-1, 256, 256, 3))
-    train_labels = np.array(y_train)
+    # train_images = np.reshape(X_train, (-1, 256, 256, 3))
+    #train_labels = np.array(y_train)
 
     # Get center crop 224x224 for validation images
-    start_px = int((256 - 224) / 2)
-    end_px = int(start_px + 224)
+    # start_px = int((256 - 224) / 2)
+    # end_px = int(start_px + 224)
     #X_val_crop = centerCropListImage(X_val, 224)
-    val_images = np.reshape(X_val, (-1, 256, 256, 3))
-    val_images = val_images[:, start_px:end_px, start_px:end_px, :]
-    print(val_images.shape)
+    # val_images = np.reshape(X_val, (-1, 256, 256, 3))
+    # val_images = val_images[:, start_px:end_px, start_px:end_px, :]
+    val_images = []
+    for img in X_val:
+        height, width, _ = img.shape
+        ratio = width / height
+        width = 256 if width < height else 256*ratio
+        height = width / ratio
+
+        img = cv2.resize(img, (int(width), int(height)))
+
+        # center crop
+        sr = int((height - 224) / 2)
+        sc = int((width - 224) / 2)
+
+        val_images.append(img[sr:sr+224, sc:sc+224, :])
+    val_images = np.array(val_images)
+    print("valImage shape", val_images.shape)
     val_labels = np.array(y_val)
 
-    train_datagen = ImageDataGenerator(horizontal_flip=True)
-    train_batches = train_datagen.flow(
-        train_images, train_labels, batch_size=batchSize)
+    # train_datagen = ImageDataGenerator(horizontal_flip=True)
+    # train_batches = train_datagen.flow(
+    #     train_images, train_labels, batch_size=batchSize)
+    # train_crops = crop_generator(train_batches, 224)
+    train_batches = ImageGeneratorVGGFace(
+        X_train, y_train, batch_size=batchSize)
     train_crops = crop_generator(train_batches, 224)
 
     mcp_save = ModelCheckpoint(
         save_path, save_best_only=True, monitor='val_loss', mode='min')
     reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.1, patience=5)
     if numStep is None:
-        numStep = len(train_images)/batchSize
+        numStep = len(X_train)/batchSize
     finetune_model.fit_generator(train_crops, validation_data=(
         val_images, val_labels), steps_per_epoch=numStep, verbose=1, epochs=eps, callbacks=[mcp_save, reduce_lr])
 
@@ -168,8 +226,16 @@ def extract_feature_from_face_list(model_path, faces_list):
 
     return feature_extractor.predict(X, batch_size=20, verbose=1)
 
+
+def setRandomSeed(seed=42):
+    np.random.seed(seed)
+    tf.set_random_seed(seed)
+
+
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
-    with open('../data/training_data/vgg_data/config_fc7/9104/training_data.pkl', 'rb') as f:
+    setRandomSeed()
+    with open('../data/training_data/vgg_data/config_fc7_2018_linear_svm_vgg16_pool5_gap/chelsea/training_data.pkl', 'rb') as f:
         data = pickle.load(f)
-    fine_tune(data, './fine_tuned_model.h5', numStep=None, batchSize=15, eps=30) 
+    fine_tune(data, './fine_tuned_model.h5',
+              numStep=None, batchSize=10, eps=20)
