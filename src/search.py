@@ -191,10 +191,6 @@ class SearchEngine(object):
             else:
                 neg += 1
 
-        # if len(x_sample) != len(new_x_sample):
-        #     print('[+] # Samples before removing %d' % (len(x_sample)))
-        #     print('[+] # Samples after removing %d' % (len(new_x_sample)))
-
         return new_x_sample, new_y_sample, pos, neg
 
     def form_training_set(self, result, thresh=0.7, rmBadFaces=None):
@@ -264,83 +260,110 @@ class SearchEngine(object):
     def form_training_set_using_best_face_in_each_shot(self, result, rmBadFaces=None):
         X, Y, landmarks_info = [], [], []
 
-        for seqNum in range(50):  # Get positive samples
+        ############################################################
+        ################### GET POSITIVE SAMPLES ###################
+        ############################################################
+        for seqNum in range(100):
             record = result[seqNum]
             shot_id = record[0]
             video_id = shot_id.split('_')[0][4:]
+
+            frameSet = set()
+            for r in record[2][0]:
+                frameSet.add(r[0][0])
+            frameNum = len(frameSet)
+
+            # Load faces and landmarks files
+            with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
+                faces = pickle.load(f)
+            with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
+                landmarks = pickle.load(f)
 
             # Get best face
             best_face_data = sorted(calculate_average_faces_sim(
-                record), key=lambda x: x[1])[-1]
+                record), key=lambda x: x[1])[-3:]
 
-            frame_file = best_face_data[0][0]
-            frame = cv2.imread(os.path.join(
-                self.frames_folder, 'video' + video_id, shot_id, frame_file))
-            height, width = frame.shape[:2]
+            for face_data in best_face_data:
 
-            # Get landmark of best face
-            with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
-                faces = pickle.load(f)
-            with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
-                landmarks = pickle.load(f)
+                frame_file = face_data[0][0]
+                frame = cv2.imread(os.path.join(
+                    self.frames_folder, 'video' + video_id, shot_id, frame_file))
+                height, width = frame.shape[:2]
 
-            best_face_landmark = None
-            for face, landmark in zip(faces, landmarks):
-                if face == best_face_data[0]:
-                    best_face_landmark = landmark
-                    break
-            image_points = []
-            for i in range(int(len(best_face_landmark)/2.)):
-                x, y = int(best_face_landmark[i]), int(best_face_landmark[i+5])
-                image_points.append((x, y))
-                cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
-            image_points = np.array(image_points, dtype='double')
 
-            x, y, _x, _y = best_face_data[0][1]
-            best_face = frame[y:_y, x:_x]
-            X.append(best_face)
-            landmarks_info.append((image_points, (height, width)))
+                best_face_landmark = None
+                for face, landmark in zip(faces, landmarks):
+                    if face == face_data[0]:
+                        best_face_landmark = landmark
+                        break
 
-            Y.append(1)
+                image_points = []
+                for i in range(int(len(best_face_landmark)/2.)):
+                    x, y = int(best_face_landmark[i]), int(best_face_landmark[i+5])
+                    image_points.append((x, y))
+                    cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
+                image_points = np.array(image_points, dtype='double')
 
-        for seqNum in range(50, 100):  # Get negative sample
+                x, y, _x, _y = face_data[0][1]
+                best_face = frame[y:_y, x:_x]
+                X.append(best_face)
+                landmarks_info.append((image_points, (height, width)))
+
+                Y.append(1)
+
+        ############################################################
+        ################### GET NEGATIVE SAMPLES ###################
+        ############################################################
+        for seqNum in range(100):
             record = result[seqNum]
             shot_id = record[0]
             video_id = shot_id.split('_')[0][4:]
 
-            best_face_data = sorted(calculate_average_faces_sim(
-                record), key=lambda x: x[1])[-1]
+            frameSet = set()
+            for r in record[2][0]:
+                frameSet.add(r[0][0])
+            frameNum = len(frameSet)
 
-            frame_file = best_face_data[0][0]
-            frame = cv2.imread(os.path.join(
-                self.frames_folder, 'video' + video_id, shot_id, frame_file))
-
-            # Get landmark of best face
+            # Load faces and landmarks files
             with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
                 faces = pickle.load(f)
             with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
                 landmarks = pickle.load(f)
 
-            best_face_landmark = None
-            for face, landmark in zip(faces, landmarks):
-                if face == best_face_data[0]:
-                    best_face_landmark = landmark
-                    break
-            image_points = []
-            for i in range(int(len(best_face_landmark)/2.)):
-                x, y = int(best_face_landmark[i]), int(best_face_landmark[i+5])
-                image_points.append((x, y))
-                cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
-            image_points = np.array(image_points, dtype='double')
+            # Get bad face
+            bad_face_data = sorted(calculate_average_faces_sim(
+                record), key=lambda x: x[1])[(-frameNum-6):-frameNum]
 
-            x, y, _x, _y = best_face_data[0][1]
-            best_face = frame[y:_y, x:_x]
+            for face_data in bad_face_data:
 
-            X.append(best_face)
-            landmarks_info.append((image_points, (height, width)))
+                frame_file = face_data[0][0]
+                frame = cv2.imread(os.path.join(
+                    self.frames_folder, 'video' + video_id, shot_id, frame_file))
+                height, width = frame.shape[:2]
 
-            Y.append(0)
 
+                bad_face_landmark = None
+                for face, landmark in zip(faces, landmarks):
+                    if face == face_data[0]:
+                        bad_face_landmark = landmark
+                        break
+
+                image_points = []
+                for i in range(int(len(bad_face_landmark)/2.)):
+                    x, y = int(bad_face_landmark[i]), int(bad_face_landmark[i+5])
+                    image_points.append((x, y))
+                    cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
+                image_points = np.array(image_points, dtype='double')
+
+                x, y, _x, _y = face_data[0][1]
+                bad_face = frame[y:_y, x:_x]
+                X.append(bad_face)
+                landmarks_info.append((image_points, (height, width)))
+
+                Y.append(0)
+
+
+        # Filter Bad Faces in training data
         if rmBadFaces is not None:
             X, Y, _, _ = rmBadFaces(
                 X, Y, landmarks_info)
@@ -780,29 +803,30 @@ class SearchEngine(object):
             training_set_path = os.path.join(
                 self.vgg_training_data_folder, self.query_name, "training_data.pkl")
 
+            print('Training set Path:', training_set_path)
             if not os.path.exists(training_set_path):
                 # training_set = self.form_training_set(
-                #     result[:100], thresh=0.8, rmBadFaces=self._PEsolvePnP)
+                #     result[:100], thresh=0.85, rmBadFaces=None)
                 training_set = self.form_training_set_using_best_face_in_each_shot(
-                    result[:100], rmBadFaces=self._PEsolvePnP)
+                    result[:100], rmBadFaces=None)
                 with open(training_set_path, "wb") as f:
                     pickle.dump(training_set, f)
                 self.sticher.process_training_set(
-                    training_set_path, save_path=os.path.join(self.vgg_training_data_folder, self.query_name))
+                    training_set_path, save_path=os.path.join(self.vgg_training_data_folder, self.query_name), shape=(15, 18))
                 print("[+] Builded training data")
             else:
                 with open(training_set_path, 'rb') as f:
                     training_set = pickle.load(f)
                 print("[+] Loaded training data")
 
-            result = self.stage_2(query_faces, training_set,
-                                  multiprocess=multiprocess)
-            stage_2_execution_time = time.time() - start
+            # result = self.stage_2(query_faces, training_set,
+            #                       multiprocess=multiprocess)
+            # stage_2_execution_time = time.time() - start
 
-            write_result_to_file(self.query_name, result, os.path.join(
-                root_result_folder, 'stage 2', "result.txt"))
-            write_result(self.query_name, result, os.path.join(
-                root_result_folder, "stage_2.pkl"))
+            # write_result_to_file(self.query_name, result, os.path.join(
+            #     root_result_folder, 'stage 2', "result.txt"))
+            # write_result(self.query_name, result, os.path.join(
+            #     root_result_folder, "stage_2.pkl"))
             # self.sticher.save_shots_max_images(
             #     result, stage_2_path)
 
@@ -879,6 +903,7 @@ if __name__ == '__main__':
              "jack", "jane", "max", "minty", "mo", "zainab"]
     # names = ["9104"]
     # names = ['chelsea']
+    # names = ['darrin']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:
@@ -911,4 +936,4 @@ if __name__ == '__main__':
                                     save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
 
         search_engine.searching(
-            query, masks, isStage1=False, isStage2=False, isStage3=False, multiprocess=True)
+            query, masks, isStage1=False, isStage2=True, isStage3=False, multiprocess=True)
