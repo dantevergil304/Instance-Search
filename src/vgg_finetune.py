@@ -6,6 +6,7 @@ from keras.models import load_model, model_from_json
 from keras.regularizers import l2
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
+from keras_vggface import utils
 
 import cv2
 import numpy as np
@@ -78,13 +79,15 @@ def crop_generator(batches, crop_length):
     while True:
         batch_x, batch_y = next(batches)
         batch_crops = np.zeros(
-            (batch_x.shape[0], crop_length, crop_length, 3), dtype=np.uint8)
+            (batch_x.shape[0], crop_length, crop_length, 3), dtype=np.float64)
         for i in range(batch_x.shape[0]):
             batch_crops[i] = random_crop(
                 batch_x[i], (crop_length, crop_length))
 
             if np.random.rand() >= 0.5:
                 batch_crops[i] = cv2.flip(batch_crops[i], 1)
+
+        batch_crops = utils.preprocess_input(batch_crops, version=1)
         # for img in batch_crops:
         #     cv2.imshow('fig', img)
         #     cv2.waitKey()
@@ -192,8 +195,8 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
         sc = int((width - 224) / 2)
 
         val_images.append(img[sr:sr+224, sc:sc+224, :])
-    val_images = np.array(val_images)
-    print("valImage shape", val_images.shape)
+    val_images = np.array(val_images, dtype=np.float64)
+    val_images = utils.preprocess_input(val_images, version=1)
     val_labels = np.array(y_val)
 
     # train_datagen = ImageDataGenerator(horizontal_flip=True)
