@@ -5,9 +5,11 @@ from keras_vggface.vggface import VGGFace
 from keras.models import load_model, model_from_json
 from keras.regularizers import l2
 from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, TensorBoard
+from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from keras_vggface import utils
 from keras import backend as K
+from datetime import datetime
+from trainValTensorboard import TrainValTensorBoard
 
 import cv2
 import numpy as np
@@ -213,12 +215,11 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
     mcp_save = ModelCheckpoint(
         save_path, save_best_only=True, monitor='val_loss', mode='min')
     reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.1, patience=5)
-    tensorboard = TensorBoard(log_dir='./logs', histogram_freq=0,
-                              write_graph=True, write_images=False)
+
     if numStep is None:
         numStep = len(X_train)/batchSize
     finetune_model.fit_generator(train_crops, validation_data=(
-        val_images, val_labels), steps_per_epoch=numStep, verbose=1, epochs=eps, callbacks=[mcp_save, reduce_lr, tensorboard])
+        val_images, val_labels), steps_per_epoch=numStep, verbose=1, epochs=eps, callbacks=[mcp_save, reduce_lr, TrainValTensorBoard(log_dir='./logs/run-{}/'.format(datetime.utcnow().strftime("%Y%m%d%H%M%S")), write_graph=False)])
 
     return finetune_model
 
