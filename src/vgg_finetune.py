@@ -218,8 +218,11 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
 
     if numStep is None:
         numStep = len(X_train)/batchSize
+    # finetune_model.fit_generator(train_crops, validation_data=(
+    #     val_images, val_labels), steps_per_epoch=numStep, verbose=1, epochs=eps, callbacks=[mcp_save, reduce_lr, TrainValTensorBoard(log_dir='./logs/run-{}/'.format(datetime.utcnow().strftime("%Y%m%d%H%M%S")), write_graph=False)])
+    tensorBoardVisualize_path = os.path.split(save_path)[0]
     finetune_model.fit_generator(train_crops, validation_data=(
-        val_images, val_labels), steps_per_epoch=numStep, verbose=1, epochs=eps, callbacks=[mcp_save, reduce_lr, TrainValTensorBoard(log_dir='./logs/run-{}/'.format(datetime.utcnow().strftime("%Y%m%d%H%M%S")), write_graph=False)])
+        val_images, val_labels), steps_per_epoch=numStep, verbose=1, epochs=eps, callbacks=[mcp_save, reduce_lr, TrainValTensorBoard(log_dir=tensorBoardVisualize_path, write_graph=False)])
 
     return finetune_model
 
@@ -247,7 +250,7 @@ def setRandomSeed(seed=42):
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     setRandomSeed()
-    with open('../data/training_data/vgg_data/config_fc7_2018_linear_svm_vgg16_pool5_gap/chelsea/training_data.pkl', 'rb') as f:
+    with open('../data/training_data/vgg_data/config_fc7_2018_linear_svm_vgg16_pool5_gap/darrin/training_data.pkl', 'rb') as f:
         data = pickle.load(f)
     fine_tune(data, './fine_tuned_model.h5',
               numStep=None, batchSize=20, eps=20)

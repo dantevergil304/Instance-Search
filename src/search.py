@@ -548,33 +548,33 @@ class SearchEngine(object):
             self.vgg_fine_tune_model_path, self.query_name, 'vgg_model.h5')
         if not os.path.exists(model_path):
             self.fine_tune_vgg = fine_tune(
-                training_set, model_name=self.query_name)
+                training_set, save_path=model_path, batchSize=20, eps=20)
             print("[+] Finished fine tuned VGG Face model")
         else:
             self.fine_tune_vgg = load_model(model_path)
             print("[+] Load fine tuned VGG Face model")
 
-        feature_extractor = Model(
-            self.fine_tune_vgg.input, self.fine_tune_vgg.get_layer('fc6').output)
+        # feature_extractor = Model(
+        #     self.fine_tune_vgg.input, self.fine_tune_vgg.get_layer('fc6').output)
 
-        fine_tune_feature_folder = os.path.join(
-            self.fine_tune_feature_folder, self.query_name)
+        # fine_tune_feature_folder = os.path.join(
+        #     self.fine_tune_feature_folder, self.query_name)
 
-        if not os.path.exists(fine_tune_feature_folder):
-            os.makedirs(fine_tune_feature_folder)
-            print("[+] Begin extract feature using fine tuned model")
-            extract_database_faces_features(
-                feature_extractor, self.frames_folder, self.faces_folder, fine_tune_feature_folder)
-            print("[+] Finished extract feature")
-        query_faces = []
+        # if not os.path.exists(fine_tune_feature_folder):
+        #     os.makedirs(fine_tune_feature_folder)
+        #     print("[+] Begin extract feature using fine tuned model")
+        #     extract_database_faces_features(
+        #         feature_extractor, self.frames_folder, self.faces_folder, fine_tune_feature_folder)
+        #     print("[+] Finished extract feature")
+        # query_faces = []
 
-        for face in query:
-            # faces_features store extractly like query_faces_sr except with addtional information, feature of query faces
-            feature = extract_feature_from_face(feature_extractor, face[0])
-            query_faces.append((face[0], feature))
+        # for face in query:
+        #     # faces_features store extractly like query_faces_sr except with addtional information, feature of query faces
+        #     feature = extract_feature_from_face(feature_extractor, face[0])
+        #     query_faces.append((face[0], feature))
 
-        K.clear_session()
-        return self.stage_1(query_faces, fine_tune_feature_folder, multiprocess=multiprocess)
+        # K.clear_session()
+        # return self.stage_1(query_faces, fine_tune_feature_folder, multiprocess=multiprocess)
 
     def stage_3(self, query, training_set=None, multiprocess=False):
 
@@ -822,8 +822,8 @@ class SearchEngine(object):
                     training_set = pickle.load(f)
                 print("[+] Loaded training data")
 
-            # result = self.stage_2(query_faces, training_set,
-            #                       multiprocess=multiprocess)
+            result = self.stage_2(query_faces, training_set,
+                                  multiprocess=multiprocess)
             # stage_2_execution_time = time.time() - start
 
             # write_result_to_file(self.query_name, result, os.path.join(
@@ -902,10 +902,10 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     query_folder = "../data/raw_data/queries/"
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    names = ["chelsea", "darrin", "garry", "heather",
+    names = ["darrin", "garry", "heather",
              "jack", "jane", "max", "minty", "mo", "zainab"]
     # names = ["9104"]
-    names = ['chelsea']
+    # names = ['chelsea']
     # names = ['darrin']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
