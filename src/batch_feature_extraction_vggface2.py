@@ -184,6 +184,8 @@ def extractFeatVGGFace2(model, faces_path, frames_path, video_id):
         # Preprocess output
         feat = feat.squeeze()
         feat = feat.unsqueeze(0)
+        if len(feat.shape) == 2:
+            feat = feat.unsqueeze(0)
         feat = feat.permute(1, 0, 2)
         yield feat.data.cpu().numpy(), info
 
@@ -225,7 +227,7 @@ if __name__ == '__main__':
     frames_folder = os.path.abspath(cfg["processed_data"]["frames_folder"])
 
     start_t = time.time()
-    for video_id in range(0, 2):
+    for video_id in range(30, 100):
         print('\nProcessing video %d' % video_id)
         video_features_dict = dict()
         for feats_batch, infos in extractFeatVGGFace2(model, faces_folder, frames_folder, video_id):
