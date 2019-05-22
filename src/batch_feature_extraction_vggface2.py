@@ -1,4 +1,6 @@
 from natsort import natsorted
+from face_extraction_queries import detect_face_by_path
+from keras import backend as K
 
 import numpy as np
 import cv2
@@ -25,6 +27,85 @@ def extendBB(org_img_size, left, top, right, bottom, ratio=0.3):
     center_y = (top + bottom) / 2
 
     return max(0, int(center_x - new_width/2)), max(0, int(center_y - new_height/2)), min(org_img_size[1], int(center_x + new_width/2)), min(org_img_size[1], int(center_y + new_height/2))
+
+
+def extract_feature_from_face_VGGFace2(frame, bb):
+    # Get loose cropped face
+    x1, y1, x2, y2 = extendBB(frame.shape[:2], bb[0], bb[1], bb[2], bb[3])
+    face = frame[y1:y2, x1:x2]
+    face = cv2.resize(face, (224, 224))
+
+    # Subtrace mean
+    face = face.astype(np.float64)
+    mean = [91.4953, 103.8827, 131.0912]
+    face = face - mean
+
+    # Load model
+    MainModel = imp.load_source(
+        'MainModel', '../3rd_party/senet50_256_pytorch/senet50_256_pytorch.py')
+    model = torch.load(
+        '../3rd_party/senet50_256_pytorch/senet50_256_pytorch.pth')
+    model = model.cuda()
+
+    # Extract Feat
+    face_tensor = torch.from_numpy(face)
+    face_tensor = face_tensor.cuda()
+    face_tensor = face_tensor.unsqueeze(0)
+    face_tensor = face_tensor.permute(0, 3, 1, 2)
+    face_tensor = face_tensor.type('torch.cuda.FloatTensor')
+
+    feat = model(face_tensor)
+
+    feat = feat.squeeze()
+    feat = feat.unsqueeze(0)
+    return feat.data.cpu().numpy()
+
+
+def extract_feature_from_query_VGGFace2():
+    with open("../cfg/config.json", "r") as f:
+        cfg = json.load(f)
+
+    query_feature_folder = cfg['features']['Query_feature']
+    query_folder = '../data/raw_data/queries'
+    names = ["chelsea", "darrin", "garry",
+             "heather", "max", "minty", "mo", "zainab"]
+
+    for name in names:
+        save_path = os.path.join(query_feature_folder, name)
+        if not os.path.exists(save_path):
+            os.mkdir(save_path)
+        query = [
+            name + ".1.src.png",
+            name + ".2.src.png",
+            name + ".3.src.png",
+            name + ".4.src.png"
+
+        ]
+        masks = [
+            name + ".1.mask.png",
+            name + ".2.mask.png",
+            name + ".3.mask.png",
+            name + ".4.mask.png"
+        ]
+
+        query = [os.path.join(query_folder, q) for q in query]
+        masks = [os.path.join(query_folder, m) for m in masks]
+        print("Query paths:", query)
+        print("Mask paths:", masks)
+        print("============================================================================\n\n")
+        print()
+        print("                       QUERY CHARACTER : %s\n\n" % (name))
+        print(
+            "============================================================================")
+
+        _, bbs, _ = detect_face_by_path(query, masks)
+        K.clear_session()
+
+        for idx, (q_path, bb) in enumerate(zip(query, bbs)):
+            frame = cv2.imread(q_path)
+            feat = extract_feature_from_face_VGGFace2(frame, bb)
+
+            np.save(os.path.join(save_path, name + str(idx) + '.npy'), feat)
 
 
 def BatchGeneratorVGGFace2(faces_path, frames_path, VIDEO_ID=0, batch_size=30):
@@ -85,7 +166,7 @@ def BatchGeneratorVGGFace2(faces_path, frames_path, VIDEO_ID=0, batch_size=30):
 def extractFeatVGGFace2(model, faces_path, frames_path, video_id):
     begin = time.time()
 
-    for batch, info in BatchGeneratorVGGFace2(faces_path, frames_path, video_id):
+    for batch, info in BatchGeneratorVGGFace2(faces_path, frames_path, video_id, batch_size=15):
         print("Batch shape: %d" % batch.shape[0])
 
         # Preprocess Input
@@ -103,6 +184,7 @@ def extractFeatVGGFace2(model, faces_path, frames_path, video_id):
         # Preprocess output
         feat = feat.squeeze()
         feat = feat.unsqueeze(0)
+        feat = feat.permute(1, 0, 2)
         yield feat.data.cpu().numpy(), info
 
     end = time.time()
@@ -112,6 +194,8 @@ def extractFeatVGGFace2(model, faces_path, frames_path, video_id):
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
+
+    # extract_feature_from_query_VGGFace2()
 
     MainModel = imp.load_source(
         'MainModel', '../3rd_party/senet50_256_pytorch/senet50_256_pytorch.py')
@@ -141,11 +225,11 @@ if __name__ == '__main__':
     frames_folder = os.path.abspath(cfg["processed_data"]["frames_folder"])
 
     start_t = time.time()
-    for video_id in range(0, 244):
+    for video_id in range(0, 2):
         print('\nProcessing video %d' % video_id)
         video_features_dict = dict()
-        for feats_batch, info in extractFeatVGGFace2(model, faces_folder, frames_folder, video_id):
-            for feat, info in zip(feats_batch, info):
+        for feats_batch, infos in extractFeatVGGFace2(model, faces_folder, frames_folder, video_id):
+            for idx, (feat, info) in enumerate(zip(feats_batch, infos)):
                 if str(info) not in video_features_dict.keys():
                     video_features_dict[str(info)] = [feat]
                 else:
