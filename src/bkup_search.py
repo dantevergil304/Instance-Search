@@ -430,12 +430,8 @@ class SearchEngine(object):
         for video_feature_file in video_feature_files:
             video_id = video_feature_file[0].split('.')[0]
             print('Processing video', video_id)
-            if self.net == 'VGGFace':
-                with open(video_feature_file[1], 'rb') as f:
-                    video_feature = pickle.load(f)
-            elif self.net == 'VGGFace2':
-                with open(video_feature_file[1], 'rb') as f:
-                    video_feature = pickle.load(f, encoding='latin1')
+            with open(video_feature_file[1], 'rb') as f:
+                video_feature = pickle.load(f)
 
             # for idx, shot_feature_file in enumerate(shot_feature_files):
             for shot_id, shot_faces_feat in video_feature.items():
@@ -571,13 +567,12 @@ class SearchEngine(object):
 
         if not os.path.exists(fine_tune_feature_folder):
             os.makedirs(fine_tune_feature_folder)
+            print("[+] Begin extract feature using fine tuned model")
+            extract_database_faces_features(
+                feature_extractor, self.frames_folder, self.faces_folder, fine_tune_feature_folder)
+            print("[+] Finished extract feature")
+        # query_faces = []
 
-        print("[+] Begin extract feature using fine tuned model")
-        extract_database_faces_features(
-            feature_extractor, self.frames_folder, self.faces_folder, fine_tune_feature_folder)
-        print("[+] Finished extract feature")
-
-        query_faces = []
         # for face in query:
         #     # faces_features store extractly like query_faces_sr except with addtional information, feature of query faces
         #     feature = extract_feature_from_face(feature_extractor, face[0])
@@ -718,7 +713,8 @@ class SearchEngine(object):
             if os.path.exists(os.path.join(self.query_feature_folder, self.query_name)):
                 for idx, face in enumerate(faces_sr):
                     if face is not None:
-                        feature = np.load(os.path.join(self.query_feature_folder, self.query_name, f'{self.query_name}{idx}.npy'))
+                        with open(os.path.join(self.query_feature_folder, self.query_name, f'{self.query_name}.{idx}.npy')) as f:
+                            feature = pickle.load(f)
                         faces_features.append((face, feature))
                     else:
                         faces_features.append(None)
@@ -729,7 +725,6 @@ class SearchEngine(object):
 
 
         # Remove Bad Faces in query
-        query_faces = faces_features
         if self.rmBF_method == 'peking':
             query_faces = self.remove_bad_faces(faces_features)
 
@@ -848,7 +843,7 @@ class SearchEngine(object):
 
             result = self.stage_2(query_faces, training_set,
                                   multiprocess=multiprocess)
-            stage_2_execution_time = time.time() - start
+            # stage_2_execution_time = time.time() - start
 
             # write_result_to_file(self.query_name, result, os.path.join(
             #     root_result_folder, 'stage 2', "result.txt"))
@@ -927,13 +922,13 @@ if __name__ == '__main__':
     query_folder = "../data/raw_data/queries/"
     # names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    names = ["darrin", "garry", "heather",
-           "jack", "jane", "max", "minty", "mo", "zainab"]
+    # names = ["chelsea", "darrin", "garry", "heather",
+    #          "jack", "jane", "max", "minty", "mo", "zainab"]
     # names = ["9104"]
-    # names = ['jack']
     # names = ['chelsea']
+    # names = ['jack']
+    names = ['chelsea']
     # names = ['darrin']
-    # names = ['heather']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     for name in names:

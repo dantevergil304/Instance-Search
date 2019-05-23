@@ -152,12 +152,14 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
     model = create_regularized_model(model, 5e-4)
 
     fc6_relu = model.get_layer('fc6/relu')
+    fc7 = model.get_layer('fc7')
     fc7_relu = model.get_layer('fc7/relu')
 
     dropout_fc6 = Dropout(0.5)
     dropout_fc7 = Dropout(0.5)
 
     x = dropout_fc6(fc6_relu.output)
+    x = fc7(x)
     x = fc7_relu(x)
     x = dropout_fc7(x)
     out = Dense(nb_class, activation='softmax', name='fc8')(x)

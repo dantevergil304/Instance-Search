@@ -67,7 +67,7 @@ def extract_feature_from_query_VGGFace2():
 
     query_feature_folder = cfg['features']['Query_feature']
     query_folder = '../data/raw_data/queries'
-    names = ["chelsea", "darrin", "garry",
+    names = ["chelsea", "darrin", "garry", "jack", "jane",
              "heather", "max", "minty", "mo", "zainab"]
 
     for name in names:
@@ -166,7 +166,7 @@ def BatchGeneratorVGGFace2(faces_path, frames_path, VIDEO_ID=0, batch_size=30):
 def extractFeatVGGFace2(model, faces_path, frames_path, video_id):
     begin = time.time()
 
-    for batch, info in BatchGeneratorVGGFace2(faces_path, frames_path, video_id, batch_size=15):
+    for batch, info in BatchGeneratorVGGFace2(faces_path, frames_path, video_id, batch_size=13):
         print("Batch shape: %d" % batch.shape[0])
 
         # Preprocess Input
@@ -197,52 +197,52 @@ def extractFeatVGGFace2(model, faces_path, frames_path, video_id):
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 
-    # extract_feature_from_query_VGGFace2()
+    extract_feature_from_query_VGGFace2()
 
-    MainModel = imp.load_source(
-        'MainModel', '../3rd_party/senet50_256_pytorch/senet50_256_pytorch.py')
-    model = torch.load(
-        '../3rd_party/senet50_256_pytorch/senet50_256_pytorch.pth')
-    model = model.cuda()
+    # MainModel = imp.load_source(
+    #     'MainModel', '../3rd_party/senet50_256_pytorch/senet50_256_pytorch.py')
+    # model = torch.load(
+    #     '../3rd_party/senet50_256_pytorch/senet50_256_pytorch.pth')
+    # model = model.cuda()
 
-    # face = cv2.resize(face, (224, 224))
-    # face_tensor = torch.from_numpy(face)
-    # face_tensor = face_tensor.unsqueeze(0)
-    # face_tensor = face_tensor.permute(0, 3, 1, 2)
-    # face_tensor = face_tensor.type('torch.FloatTensor')
-    # print(face_tensor.shape)
+    # # face = cv2.resize(face, (224, 224))
+    # # face_tensor = torch.from_numpy(face)
+    # # face_tensor = face_tensor.unsqueeze(0)
+    # # face_tensor = face_tensor.permute(0, 3, 1, 2)
+    # # face_tensor = face_tensor.type('torch.FloatTensor')
+    # # print(face_tensor.shape)
 
-    # out = model(face_tensor)
-    # print(out)
+    # # out = model(face_tensor)
+    # # print(out)
 
-    with open("../cfg/config.json", "r") as f:
-        cfg = json.load(f)
-    with open('../cfg/search_config.json', 'r') as f:
-        search_cfg = json.load(f)
-    print("[+] Loaded config file")
+    # with open("../cfg/config.json", "r") as f:
+    #     cfg = json.load(f)
+    # with open('../cfg/search_config.json', 'r') as f:
+    #     search_cfg = json.load(f)
+    # print("[+] Loaded config file")
 
-    default_feature_folder = os.path.abspath(
-        cfg["features"]["VGG_default_features"])
-    faces_folder = os.path.abspath(cfg["processed_data"]["faces_folder"])
-    frames_folder = os.path.abspath(cfg["processed_data"]["frames_folder"])
+    # default_feature_folder = os.path.abspath(
+    #     cfg["features"]["VGG_default_features"])
+    # faces_folder = os.path.abspath(cfg["processed_data"]["faces_folder"])
+    # frames_folder = os.path.abspath(cfg["processed_data"]["frames_folder"])
 
-    start_t = time.time()
-    for video_id in range(30, 100):
-        print('\nProcessing video %d' % video_id)
-        video_features_dict = dict()
-        for feats_batch, infos in extractFeatVGGFace2(model, faces_folder, frames_folder, video_id):
-            for idx, (feat, info) in enumerate(zip(feats_batch, infos)):
-                if str(info) not in video_features_dict.keys():
-                    video_features_dict[str(info)] = [feat]
-                else:
-                    video_features_dict[str(info)].append(feat)
+    # start_t = time.time()
+    # for video_id in range(156, 160):
+    #     print('\nProcessing video %d' % video_id)
+    #     video_features_dict = dict()
+    #     for feats_batch, infos in extractFeatVGGFace2(model, faces_folder, frames_folder, video_id):
+    #         for idx, (feat, info) in enumerate(zip(feats_batch, infos)):
+    #             if str(info) not in video_features_dict.keys():
+    #                 video_features_dict[str(info)] = [feat]
+    #             else:
+    #                 video_features_dict[str(info)].append(feat)
 
-        for key in video_features_dict.keys():
-            video_features_dict[key] = np.array(video_features_dict[key])
+    #     for key in video_features_dict.keys():
+    #         video_features_dict[key] = np.array(video_features_dict[key])
 
-        # Save features to disk
-        with open(os.path.join(default_feature_folder, 'vggface2-SE-ResNet-50-256D', 'video' + str(video_id) + '.pkl'), 'wb') as f:
-            pickle.dump(video_features_dict, f)
+    #     # Save features to disk
+    #     with open(os.path.join(default_feature_folder, 'vggface2-SE-ResNet-50-256D', 'video' + str(video_id) + '.pkl'), 'wb') as f:
+    #         pickle.dump(video_features_dict, f)
 
-    print('TOTAL ELAPSED TIME: %d minutes %d seconds' %
-          ((time.time() - start_t)//60, (time.time() - start_t) % 60))
+    # print('TOTAL ELAPSED TIME: %d minutes %d seconds' %
+    #       ((time.time() - start_t)//60, (time.time() - start_t) % 60))

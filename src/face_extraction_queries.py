@@ -43,6 +43,8 @@ def detect_face_by_image(query, masks):
         best_bbox = None
         best_landmark = None
         best_overlap = 0
+        best_score = 0
+        highest_y = float('inf')
         for face_info, landmark in zip(detected_faces, detected_landmark.transpose()):
             x, y, _x, _y = [int(coord) for coord in face_info[:4]]
             bbox_mask = np.zeros((im_height, im_width), dtype=np.uint8)
@@ -53,10 +55,22 @@ def detect_face_by_image(query, masks):
             # Compute the overlapping area
             overlap = np.count_nonzero(res)
 
-            if overlap > best_overlap:
-                best_bbox = face_info
-                best_landmark = landmark
-                best_overlap = overlap
+            # if overlap > 0 and y < highest_y:
+            #     best_bbox = face_info
+            #     best_landmark = landmark
+            #     best_overlap = overlap
+            #     highest_y = y
+
+            if face_info[4] > 0.8:
+                if overlap > best_overlap:
+                    best_bbox = face_info
+                    best_landmark = landmark
+                    best_overlap = overlap
+            # if overlap > 0:
+            #     if face_info[4] > best_score:
+            #         best_bbox = face_info
+            #         best_landmark = landmark
+            #         best_score = face_info[4]
 
         # Result image after applying mask
         if best_bbox is not None:
