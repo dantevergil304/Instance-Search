@@ -50,12 +50,12 @@ def split_train_val(training_data):
     num_pos = sum([val for val in y])
     num_neg = len(y) - num_pos
 
-    k = np.array(list(zip(X, y)))
-    np.random.shuffle(k[:num_pos])
-    np.random.shuffle(k[num_pos:])
+    # k = np.array(list(zip(X, y)))
+    # np.random.shuffle(k[:num_pos])
+    # np.random.shuffle(k[num_pos:])
 
-    X = k[:, 0].tolist()
-    y = k[:, 1].tolist()
+    # X = k[:, 0].tolist()
+    # y = k[:, 1].tolist()
 
     X_train = X[:int(num_pos*0.7)] + X[num_pos:num_pos + int(num_neg*0.7)]
     y_train = y[:int(num_pos*0.7)] + y[num_pos:num_pos + int(num_neg*0.7)]
@@ -119,7 +119,7 @@ def ImageGeneratorVGGFace(X, y, batch_size):
             width = 256 if width < height else 256*ratio
             height = width / ratio
 
-            img = cv2.resize(img, (int(256), int(256)))
+            img = cv2.resize(img, (int(width), int(height)))
 
             # cv2.imshow('figure', img)
             # cv2.waitKey()
@@ -195,8 +195,6 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
         width = 256 if width < height else 256*ratio
         height = width / ratio
 
-        height = 256
-        width = 256
         img = cv2.resize(img, (int(width), int(height)))
 
         # center crop

@@ -11,6 +11,33 @@ sys.path.append(os.path.abspath(os.path.join('..', '3rd_party')))
 from ServiceMTCNN import detect_face as lib
 
 
+def extract_faces_from_image(img, pnet, rnet, onet):
+    # sess = tf.Session()
+    # pnet, rnet, onet = lib.create_mtcnn(sess, None)
+    minsize = 20
+    threshold = [0.6, 0.7, 0.7]
+    factor = 0.709
+    print("[+] Initialized MTCNN modules")
+
+    boxes, landmarks = lib.detect_face(
+        img, minsize, pnet, rnet, onet, threshold, factor)
+
+    faces = []
+    for index, box in enumerate(boxes):
+        x1, y1, x2, y2 = int(box[0]), int(
+            box[1]), int(box[2]), int(box[3])
+        if y1 < 0:
+            y1 = 0
+        if x1 < 0:
+            x1 = 0
+        if y2 > img.shape[0]:
+            y2 = img.shape[0]
+        if x2 > img.shape[1]:
+            x2 = img.shape[1]
+        faces.append(img[y1:y2, x1:x2])
+    return faces
+
+
 def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, output_landmarks_folder):
     '''
     Extract faces for all shots in input_frames_folder. Each shot

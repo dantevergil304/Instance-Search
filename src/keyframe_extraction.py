@@ -63,40 +63,51 @@ def KeyframeExtraction(input_path, output_path, sampling_rate=None):
     cap.release()
     cv2.destroyAllWindows()
 
+def extract_kf_shot_queries(shot_query_path, shot_query_frames_path, sampling_rate):
+    for query_dir in glob.glob(os.path.join(shot_query_path, '*')):
+        query_name = os.path.basename(query_dir)
+        save_path = os.path.join(shot_query_frames_path, query_name)
+        if not os.path.exists(save_path):
+            os.mkdir(save_path)
+        for shot_video in glob.glob(os.path.join(query_dir, '*mp4')):
+            KeyframeExtraction(shot_video, save_path, sampling_rate)
 
 if __name__ == '__main__':
-    with open("../cfg/config.json", "r") as f:
-        config = json.load(f)
+    shot_query_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/tv18.person.example.shots'
+    shot_query_frames_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/shot_query_frames'
+    extract_kf_shot_queries(shot_query_path, shot_query_frames_path, 5)
+    # with open("../cfg/config.json", "r") as f:
+    #     config = json.load(f)
 
-    raw_shot_folder = os.path.abspath(config["raw_data"]["raw_shots_folder"])
-    # frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
-    frames_folder = '/storageStudents/K2015/duyld/hieudvm/TestScript/folder_video_226/'
+    # raw_shot_folder = os.path.abspath(config["raw_data"]["raw_shots_folder"])
+    # # frames_folder = os.path.abspath(config["processed_data"]["frames_folder"])
+    # frames_folder = '/storageStudents/K2015/duyld/hieudvm/TestScript/folder_video_226/'
 
-    total_time = 0
-    extracted_shot = 0
-    for shot in glob.glob(os.path.join(raw_shot_folder, '*.mp4')):
-        video_id = os.path.basename(shot).split('_')[0][4:]
-        if video_id != '226':
-            continue
+    # total_time = 0
+    # extracted_shot = 0
+    # for shot in glob.glob(os.path.join(raw_shot_folder, '*.mp4')):
+    #     video_id = os.path.basename(shot).split('_')[0][4:]
+    #     if video_id != '226':
+    #         continue
 
-        # Check if there is no free space on hard disk
-        statvfs = os.statvfs('/')
-        if statvfs.f_frsize * statvfs.f_bavail / (10**6 * 1024) < 5:
-            print(
-                '\033[93mWarning: Stop process. There is no free space left!\033[0m')
-            break
+    #     # Check if there is no free space on hard disk
+    #     statvfs = os.statvfs('/')
+    #     if statvfs.f_frsize * statvfs.f_bavail / (10**6 * 1024) < 5:
+    #         print(
+    #             '\033[93mWarning: Stop process. There is no free space left!\033[0m')
+    #         break
 
-        save_dir = os.path.join(
-            frames_folder, os.path.basename(shot).split('.')[0])
-        if not os.path.isdir(save_dir):
-            begin = time.time()
-            KeyframeExtraction(shot, frames_folder, 5)
-            end = time.time()
+    #     save_dir = os.path.join(
+    #         frames_folder, os.path.basename(shot).split('.')[0])
+    #     if not os.path.isdir(save_dir):
+    #         begin = time.time()
+    #         KeyframeExtraction(shot, frames_folder, 5)
+    #         end = time.time()
 
-            total_time += (end - begin)
+    #         total_time += (end - begin)
 
-            extracted_shot += 1
-        print('[+] Number of extracted shots: %d' % (extracted_shot))
+    #         extracted_shot += 1
+    #     print('[+] Number of extracted shots: %d' % (extracted_shot))
 
-    print('Total Elapsed Time: %f minutes and %d seconds' % (
-        total_time/60, total_time % 60))
+    # print('Total Elapsed Time: %f minutes and %d seconds' % (
+    #     total_time/60, total_time % 60))
