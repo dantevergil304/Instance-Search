@@ -1,3 +1,4 @@
+from deep_learning_utils import extendBB
 import glob
 import os
 import subprocess
@@ -51,7 +52,7 @@ if __name__ == '__main__':
                     if not os.path.exists(identifier_face_dir):
                         os.mkdir(identifier_face_dir)
                     save_path = os.path.join(identifier_face_dir,
-                                              f'{t}-{left}-{top}-{right}-{bottom}.png')
+                                             f'{t}-{left}-{top}-{right}-{bottom}.png')
                     if not os.path.exists(save_path):
                         frame = cv2.imread(os.path.join(
                             identifier_frame_dir, f'{t}-{left}-{top}-{right}-{bottom}.png'))
@@ -63,7 +64,10 @@ if __name__ == '__main__':
                         _right = int(width * right)
                         _bottom = int(height * bottom)
 
+                        _, _top, _, _bottom = extendBB(
+                            (height, width), _left, _top, _right, _bottom)
+
                         face = frame[_top:_bottom, _left:_right]
-                
+
                         cv2.imwrite(os.path.join(identifier_face_dir,
-                                                    f'{t}-{left}-{top}-{right}-{bottom}.png'), face)
+                                                 f'{t}-{left}-{top}-{right}-{bottom}.png'), face)

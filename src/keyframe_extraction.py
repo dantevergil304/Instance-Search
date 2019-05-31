@@ -6,16 +6,8 @@ import json
 import time
 
 
-def getTotalFrame(path):
-    # calculate the total frames of a video
-    cap = cv2.VideoCapture(path)
-    cnt = 0
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if ret is False:
-            break
-    cnt += 1
-    return cnt
+def getTotalFrame(cap):
+    return cap.get(cv2.CAP_PROP_FRAME_COUNT)
 
 
 def getDuration(cap):
@@ -23,10 +15,14 @@ def getDuration(cap):
     return cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS)
 
 
-def KeyframeExtraction(input_path, output_path, sampling_rate=None):
+def KeyframeExtraction(input_path, output_path, sampling_rate=None, max_frame_per_shot=None):
     # path: path to video file
     # sampling_rate: the number of frames per second
     cap = cv2.VideoCapture(input_path)
+    origin_fps = cap.get(cv2.CAP_PROP_FPS)
+    print('Total Frame:', cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if max_frame_per_shot is not None:
+        sampling_rate = max_frame_per_shot * cap.get(cv2.CAP_PROP_FPS) / cap.get(cv2.CAP_PROP_FRAME_COUNT)
 
     # total_frame = getTotalFrame(input_path)
     # duration = getDuration(cap)
@@ -63,19 +59,23 @@ def KeyframeExtraction(input_path, output_path, sampling_rate=None):
     cap.release()
     cv2.destroyAllWindows()
 
-def extract_kf_shot_queries(shot_query_path, shot_query_frames_path, sampling_rate):
+def extract_kf_shot_queries(shot_query_path, shot_query_frames_path, sampling_rate=None):
     for query_dir in glob.glob(os.path.join(shot_query_path, '*')):
         query_name = os.path.basename(query_dir)
         save_path = os.path.join(shot_query_frames_path, query_name)
         if not os.path.exists(save_path):
             os.mkdir(save_path)
         for shot_video in glob.glob(os.path.join(query_dir, '*mp4')):
-            KeyframeExtraction(shot_video, save_path, sampling_rate)
+            KeyframeExtraction(shot_video, save_path, max_frame_per_shot=10, sampling_rate=sampling_rate)
 
 if __name__ == '__main__':
+    #####################################EXTRACT KF SHOT QUERY#####################################
     shot_query_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/tv18.person.example.shots'
-    shot_query_frames_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/shot_query_frames'
-    extract_kf_shot_queries(shot_query_path, shot_query_frames_path, 5)
+    shot_query_frames_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/shot_query_frames/10_frame_per_shot'
+    extract_kf_shot_queries(shot_query_path, shot_query_frames_path)
+    
+
+    #################################EXTRACT KF SHOT VIDEO DATABASE#################################
     # with open("../cfg/config.json", "r") as f:
     #     config = json.load(f)
 

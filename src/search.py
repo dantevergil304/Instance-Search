@@ -92,6 +92,9 @@ class SearchEngine(object):
         self.n_jobs = self.search_cfg['n_jobs']
         self.good_face_checker = GoodFaceChecker(method=self.rmBF_method, checkBlur=(self.rmBF_landmarks_params["is_check_blur"] == "True"))
 
+    def add_query_shot(query, img):
+        for 
+
     def remove_bad_faces(self, query):
         '''
         Parameters:
@@ -999,6 +1002,7 @@ if __name__ == '__main__':
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
     query_folder = "../data/raw_data/queries/2018"
+    query_shot_folder = "../data/raw_data/queries/2018/shot_query_face";
     # names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     # names = ["darrin", "garry", "heather",
@@ -1006,9 +1010,10 @@ if __name__ == '__main__':
     # names = ['archie', 'billy', 'ian', 'janine', 'peggy', 'phil', 'ryan', 'shirley']
     # names = ["9104"]
     # names = ['jack']
-    names = ['chelsea']
+    # names = ['chelsea']
     # names = ['darrin']
     # names = ['heather']
+    names = ['jane']
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     ext = 'png'
