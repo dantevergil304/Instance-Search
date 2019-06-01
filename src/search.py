@@ -70,6 +70,8 @@ class SearchEngine(object):
         self.svm_training_data_folder = os.path.abspath(
             os.path.join(self.cfg["training_data"]["SVM_data"], self.cfg["config"]))
 
+        self.query_shot_folder = None
+
         # Set up config
         self.net = self.search_cfg["net"]
         self.rmBF_method = self.search_cfg["rmBadFacesMethod"]
@@ -92,8 +94,35 @@ class SearchEngine(object):
         self.n_jobs = self.search_cfg['n_jobs']
         self.good_face_checker = GoodFaceChecker(method=self.rmBF_method, checkBlur=(self.rmBF_landmarks_params["is_check_blur"] == "True"))
 
-    def add_query_shot(query, img):
-        for 
+    def extract_query_shot_feature(self, query_shot_folder):
+        query_shots = [os.path.join(query_shot_folder, folder) for folder in os.listdir(query_shot_folder)] 
+        if self.net == "VGGFace":
+            vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
+            out = vgg_model.get_layer(self.search_cfg["feature_descriptor"]).output
+            default_vgg = Model(vgg_model.input, out)
+            face_feature = []
+            for query_shot in query_shots:
+                faces_img = [os.path.join(query_shot, file) for file in os.listdir(query_shot)]
+                for face_img in faces_img:
+                    img = cv2.imread(face_img)
+                    face_sr = apply_super_res(img)
+                    feature = extract_feature_from_face(default_vgg, face_sr)
+                    face_feature.append((face_sr, feature))
+            K.clear_session()
+            return face_feature
+        else:
+            return []
+
+    # def apply_sr_query_shot(self, query_shot_folder):
+    #     faces_sr = []
+    #     query_shots = [os.path.join(query_shot_folder, folder) for folder in os.listdir(query_shot_folder)]
+    #     for query_shot in query_shots:
+    #         faces_img = [os.path.join(query_shot, file) for file in os.listdir(query_shot)]
+    #         for face_img in faces_img:
+    #             img = cv2.imread(face_img)
+    #             face_sr = apply_super_res(face_img)
+    #             faces_sr.append(face_sr)
+    #     return faces_sr
 
     def remove_bad_faces(self, query):
         '''
@@ -103,16 +132,15 @@ class SearchEngine(object):
         - query_final: resulting query after remove some bad faces. (same format at parameter)
         '''
         n = len([q for q in query if q is not None])
-        confs = [0] * 4
+        confs = [0] * n
         query_final = []
-
         for i in range(n):
             if query[i] is not None:
                 confs[i] = sum([cosine_similarity(query[i][1], query[j][1])
                                 for j in range(n) if i != j and query[j] is not None])
 
         if n > 1:
-            for i in range(4):
+            for i in range(n):
                 if query[i] is not None:
                     mean = sum([confs[j] for j in range(n) if i !=
                                 j and confs[j] != 0]) / (n - 1)
@@ -125,7 +153,7 @@ class SearchEngine(object):
         else:
             return query
 
-        if query_final.count(None) == 4:
+        if query_final.count(None) == n:
             print("[!] ERROR : No image in query")
             return query     # In case all faces are "bad" faces, return the same query features
         return query_final  # Return list of features of "good" faces
@@ -551,8 +579,8 @@ class SearchEngine(object):
 
         result.sort(reverse=True, key=lambda x: x[1])
         print("[+] Search completed")
-        with open(os.path.join('../temp', str(block_interval) + '.pkl'), 'wb') as f:
-            pickle.dump(result, f)
+        # with open(os.path.join('../temp', str(block_interval) + '.pkl'), 'wb') as f:
+        #     pickle.dump(result, f)
         return result[:1000]
 
     def multiprocess_stage_1(self, query, feature_folder, isStage3=False):
@@ -580,6 +608,9 @@ class SearchEngine(object):
         with multiprocessing.get_context("spawn").Pool() as pool:
             result = pool.starmap(self.uniprocess_stage_1, arg)
 
+        result = [item for sublist in result for item in sublist]
+        result.sort(reverse=True, key=lambda x: x[1])
+        return result[:1000]
         #     p = multiprocessing.Process(target=self.uniprocess_stage_1,
         #                                 args=(query, feature_folder,
         #                                       isStage3, (start_idx, end_idx)))
@@ -592,18 +623,19 @@ class SearchEngine(object):
 
     def stage_1(self, query, feature_folder, isStage3=False, multiprocess=False):
         if multiprocess:
-            if os.path.isdir('../temp'):
-                subprocess.call(['rm', '-rf', '../temp'])
-            os.mkdir('../temp')
-            self.multiprocess_stage_1(query, feature_folder, isStage3)
-            result = []
-            for result_path in glob.glob('../temp/*pkl'):
-                with open(result_path, 'rb') as f:
-                    result.extend(pickle.load(f))
+            # if os.path.isdir('../temp'):
+            #     subprocess.call(['rm', '-rf', '../temp'])
+            # os.mkdir('../temp')
+            # self.multiprocess_stage_1(query, feature_folder, isStage3)
+            # result = []
+            # for result_path in glob.glob('../temp/*pkl'):
+            #     with open(result_path, 'rb') as f:
+            #         result.extend(pickle.load(f))
 
-            subprocess.call(['rm', '-rf', '../temp'])
-            result.sort(reverse=True, key=lambda x: x[1])
-            return result[:1000]
+            # subprocess.call(['rm', '-rf', '../temp'])
+            # result.sort(reverse=True, key=lambda x: x[1])
+            # return result[:1000]
+            return self.multiprocess_stage_1(query, feature_folder, isStage3)
         return self.uniprocess_stage_1(query, feature_folder, isStage3)[:1000]
 
     def stage_2(self, query, training_set, multiprocess=False):
@@ -689,7 +721,7 @@ class SearchEngine(object):
 
         return self.stage_1(query_faces, fine_tune_feature_folder, isStage3=True, multiprocess=multiprocess)
 
-    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, multiprocess=False):
+    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, multiprocess=False, query_shots=False):
 
         root_result_folder = os.path.join(self.result_path, self.query_name)
         os.makedirs(root_result_folder, exist_ok=True)
@@ -791,9 +823,15 @@ class SearchEngine(object):
 
 
         # Remove Bad Faces in query
+        
         query_faces = faces_features
+
         if self.rmBF_method == 'peking':
             query_faces = self.remove_bad_faces(faces_features)
+            if query_shots == True:
+                query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
+                query_shot_feature = self.remove_bad_faces(query_shot_feature)
+                query_faces.extend(query_shot_feature)
 
         elif self.rmBF_method == 'landmark_based':
             if self.rmBF_landmarks_params['landmark_type'] == 'dlib':
@@ -812,14 +850,19 @@ class SearchEngine(object):
         elif self.rmBF_method == 'classifier':
             classifier_type = self.rmBF_classifier_params['model']
             query_faces = faces_features
-            for idx, face in enumerate(faces_sr):
+            if query_shots == True:
+                query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
+                query_faces.extend(query_shot_feature)
+                faces_sr_with_shot = [face_feature[0] for face_feature in query_faces]
+
+            for idx, face in enumerate(faces_sr_with_shot):
                 if face is not None:
                     if not self.good_face_checker.isGoodFace(face, classifier_type=classifier_type):
                         query_faces[idx] = None
 
         # visulize the query after remove bad faces
         temp = []
-        for query_face in query_faces:
+        for query_face in query_faces[:4]:
             if not query_face:
                 temp.append(np.zeros((341, 192, 3), dtype=np.uint8))
             else:
@@ -847,7 +890,6 @@ class SearchEngine(object):
                            save_path=os.path.join(root_result_folder, "preprocess.jpg"), size=None, reduce_size=True)
 
         query_faces = [query_face for query_face in query_faces if query_face]
-
         if isStage1:
             print(
                 "\n==============================================================================")
@@ -1001,19 +1043,20 @@ if __name__ == '__main__':
 
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
-    query_folder = "../data/raw_data/queries/2018"
-    query_shot_folder = "../data/raw_data/queries/2018/shot_query_face";
+
+    # Load config file
+    with open("../cfg/config.json", "r") as f:
+        cfg = json.load(f)
+    query_folder = cfg['raw_data']['queries_folder']
+    query_shot_folder = cfg['raw_data']['query_shot_folder']
+
     # names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    # names = ["darrin", "garry", "heather",
-    #        "jack", "jane", "max", "minty", "mo", "zainab"]
+    names = ["garry", "heather",
+           "jack", "jane", "max", "minty", "mo", "zainab"]
     # names = ['archie', 'billy', 'ian', 'janine', 'peggy', 'phil', 'ryan', 'shirley']
-    # names = ["9104"]
-    # names = ['jack']
-    # names = ['chelsea']
-    # names = ['darrin']
-    # names = ['heather']
-    names = ['jane']
+    names = ['max']
+    # Search
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
     ext = 'png'
@@ -1047,6 +1090,7 @@ if __name__ == '__main__':
 
         search_engine.sticher.stich(matrix_images=[imgs_v, masks_v], title="Query : " + name,
                                     save_path=os.path.join(search_engine.result_path, name, "query.jpg"))
-
+        search_engine.query_shot_folder = os.path.join(query_shot_folder, name)
+        
         search_engine.searching(
-            query, masks, isStage1=False, isStage2=True, isStage3=False, multiprocess=True)
+            query, masks, isStage1=True, isStage2=False, isStage3=False, multiprocess=True, query_shots=True)
