@@ -2,6 +2,7 @@ from sklearn.svm import LinearSVC
 from feature_extraction import extract_feature_from_face
 from keras.engine import Model
 from keras_vggface.vggface import VGGFace
+from keras.layers import GlobalAveragePooling2D
 from keras import backend as K
 
 import pickle
@@ -27,6 +28,11 @@ def isGoodFace_classifier(face_img, classifier_type="linear_svm_fc7"):
         model = Model(vgg_model.input, out)
     elif classifier_type == 'linear_svm_pool5_gap':
         model = VGGFace(input_shape=(224, 224, 3), pooling='avg', include_top=False)
+    elif classifier_type == 'linear_svm_pool4_gap':
+        vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
+        pool4 = vgg_model.get_layer('pool4').output
+        out = GlobalAveragePooling2D()(pool4)
+        model = Model(vgg_model.input, out)
     elif classifier_type == 'linear_svm_resnet50':
         vgg_model = VGGFace(input_shape=(224, 224, 3),
                             pooling='avg', model='resnet50')

@@ -31,12 +31,12 @@ def max_max_similarity(query, shot_faces):
     frames_with_bb_sim = []
     for q_face in query:
         faces_sim = [(shot_face, cosine_similarity(
-            q_face[1], shot_face)) for shot_face in shot_faces]
+            q_face[1], shot_face[1])) for shot_face in shot_faces]
         faces_sim = sorted(faces_sim, key=lambda x: x[1], reverse=True)
         final_sim = max(faces_sim[0][1], final_sim)
         # Each image q_face in query have a list of corresponding faces which sorted based on similarity between faces and q_face. Overall, it a matrix of faces (1)
         frames_with_bb_sim.append(faces_sim)
-    return final_sim
+    return final_sim, frames_with_bb_sim
 
 
 def max_mean_similarity(query, shot_faces):
@@ -51,6 +51,21 @@ def max_mean_similarity(query, shot_faces):
                                for total, sim in zip(total_sim_per_faces, faces_sim)]
         frames_with_bb_sim.append(faces_sim)
     return max([sim / n for sim in total_sim_per_faces]), frames_with_bb_sim
+
+
+def mean_mean_similarity(query, shot_faces):
+    final_sim = 0
+    frames_with_bb_sim = []
+    n = len(query)
+    total_sim_per_faces = [0] * len(shot_faces)
+    for q_face in query:
+        faces_sim = [(shot_face[0], cosine_similarity(
+            q_face[1], shot_face[1])) for shot_face in shot_faces]
+        total_sim_per_faces = [total + sim[1]
+                               for total, sim in zip(total_sim_per_faces, faces_sim)]
+        frames_with_bb_sim.append(faces_sim)
+
+    return sum([sim / n for sim in total_sim_per_faces])/len(query), frames_with_bb_sim
 
 
 def calculate_average_faces_sim(record):

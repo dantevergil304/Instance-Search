@@ -102,6 +102,7 @@ def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
     tracked_faces = []
     if face is not None:
         tracked_faces.append(face)
+        topic_face_index = 0 
 
     # Backward Tracking
     for idx, i in enumerate(range(topic_offset-1, -1, -1)):
@@ -156,6 +157,7 @@ def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
             cv2.rectangle(visualize_frame, (selectedBB[0], selectedBB[1]), (
                 selectedBB[2], selectedBB[3]), (0, 255, 0), 2)
             tracked_faces.insert(0, selectedFace)
+            topic_face_index += 1
         # cv2.imshow('forward tracking', visualize_frame)
 
         # mask_img = np.hstack((features_mask, faces_mask))
@@ -253,7 +255,7 @@ def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
     # cv2.imshow('visualize face track', visualize_faces)
     # cv2.waitKey()
     # cv2.destroyAllWindows()
-    return tracked_faces, visualize_faces
+    return tracked_faces, visualize_faces, topic_face_index
 
 
 if __name__ == '__main__':
@@ -296,6 +298,7 @@ if __name__ == '__main__':
 
     names = ['chelsea', 'darrin', 'garry', 'heather',
              'jane', 'jack', 'max', 'minty', 'mo', 'zainab']
+    names = ['jack', 'max', 'minty', 'mo', 'zainab']
     # names = ['chelsea']
     for name in names:
         for i in range(1, 5):
@@ -308,7 +311,7 @@ if __name__ == '__main__':
 
             print(topic_frame_path, topic_mask_path, shot_path)
 
-            track_faces, visualize_faces = getCorrectFaceTrackInShot(
+            track_faces, visualize_faces, topic_face_index = getCorrectFaceTrackInShot(
                 topic_frame_path, topic_mask_path, shot_path)
 
             shot_face_folder = os.path.join(
@@ -318,6 +321,8 @@ if __name__ == '__main__':
             for idx, face in enumerate(track_faces):
                 cv2.imwrite(os.path.join(shot_face_folder,
                                          f'{name}.{idx}.face.png'), face)
+                with open(os.path.join(shot_face_folder, f'topic_face_index.txt'), 'w') as f:
+                    f.write(str(topic_face_index))
 
             visualize_face_folder = os.path.join(
                 query_folder, 'visualize_shot_query_faces', f'{name}')

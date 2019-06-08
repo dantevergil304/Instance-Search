@@ -11,7 +11,7 @@ from face_extraction_queries import detect_face_by_path
 from vgg_finetune import fine_tune, extract_feature_from_face_list
 from sticher import ImageSticher
 from keras.models import load_model
-from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity, write_result_to_file, write_result, create_stage_folder, adjust_size_different_images, create_image_label, max_mean_similarity, max_max_similarity
+from util import calculate_average_faces_sim, cosine_similarity, mean_max_similarity, write_result_to_file, write_result, create_stage_folder, adjust_size_different_images, create_image_label, max_mean_similarity, max_max_similarity, mean_mean_similarity
 from scipy import stats
 from PIL import Image
 from checkGBFace_solvePnP import getFaceRotationAngles
@@ -547,7 +547,7 @@ class SearchEngine(object):
                 # print("\t%s , number of faces : %d" % (shot_id, len(shot_faces)))
 
                 # shot_faces = shot_faces_feat
-                sim, frames_with_bb_sim = mean_max_similarity(
+                sim, frames_with_bb_sim = mean_mean_similarity(
                     query, shot_faces)
 
                 if isStage3:
@@ -721,7 +721,7 @@ class SearchEngine(object):
 
         return self.stage_1(query_faces, fine_tune_feature_folder, isStage3=True, multiprocess=multiprocess)
 
-    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, multiprocess=False, query_shots=False):
+    def searching(self, query, mask, isStage1=True, isStage2=False, isStage3=False, multiprocess=False, use_query_shots=False):
 
         root_result_folder = os.path.join(self.result_path, self.query_name)
         os.makedirs(root_result_folder, exist_ok=True)
@@ -828,9 +828,12 @@ class SearchEngine(object):
 
         if self.rmBF_method == 'peking':
             query_faces = self.remove_bad_faces(faces_features)
-            if query_shots == True:
+            if use_query_shots == True:
                 query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
+                temp_query_shot_feature = query_shot_feature
                 query_shot_feature = self.remove_bad_faces(query_shot_feature)
+                self.sticher.save_query_shot_face(temp_query_shot_feature, query_shot_feature,
+                                                    save_path=os.path.join(root_result_folder, "shot_query_example.jpg"))
                 query_faces.extend(query_shot_feature)
 
         elif self.rmBF_method == 'landmark_based':
@@ -850,10 +853,17 @@ class SearchEngine(object):
         elif self.rmBF_method == 'classifier':
             classifier_type = self.rmBF_classifier_params['model']
             query_faces = faces_features
-            if query_shots == True:
+            if use_query_shots == True:
                 query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
                 query_faces.extend(query_shot_feature)
-                faces_sr_with_shot = [face_feature[0] for face_feature in query_faces]
+            
+            faces_sr_with_shot = []
+            for face_feature in query_faces:
+                if face_feature is not None:
+                    faces_sr_with_shot.append(face_feature[0])
+                else:
+                    faces_sr_with_shot.append(None)
+            # faces_sr_with_shot = [face_feature[0] for face_feature in query_faces]
 
             for idx, face in enumerate(faces_sr_with_shot):
                 if face is not None:
@@ -1047,15 +1057,19 @@ if __name__ == '__main__':
     # Load config file
     with open("../cfg/config.json", "r") as f:
         cfg = json.load(f)
+    with open('../cfg/search_config.json', 'r') as f:
+        search_cfg = json.load(f)
     query_folder = cfg['raw_data']['queries_folder']
     query_shot_folder = cfg['raw_data']['query_shot_folder']
 
     # names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    names = ["garry", "heather",
-           "jack", "jane", "max", "minty", "mo", "zainab"]
+    names = ["chelsea", "darrin", "garry", "heather", "jack",
+                "jane", "max", "minty", "mo", "zainab"]
+    # names = ['max', 'jack']
+    # names = ['minty', 'mo', 'zainab']
     # names = ['archie', 'billy', 'ian', 'janine', 'peggy', 'phil', 'ryan', 'shirley']
-    names = ['max']
+    # names = ['minty', 'mo', 'zainab']
     # Search
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
@@ -1093,4 +1107,4 @@ if __name__ == '__main__':
         search_engine.query_shot_folder = os.path.join(query_shot_folder, name)
         
         search_engine.searching(
-            query, masks, isStage1=True, isStage2=False, isStage3=False, multiprocess=True, query_shots=True)
+            query, masks, isStage1=False, isStage2=False, isStage3=False, multiprocess=True, use_query_shots=(search_cfg['use_query_shots'] == 'True'))
