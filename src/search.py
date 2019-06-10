@@ -547,7 +547,7 @@ class SearchEngine(object):
                 # print("\t%s , number of faces : %d" % (shot_id, len(shot_faces)))
 
                 # shot_faces = shot_faces_feat
-                sim, frames_with_bb_sim = mean_mean_similarity(
+                sim, frames_with_bb_sim = mean_max_similarity(
                     query, shot_faces)
 
                 if isStage3:
@@ -827,7 +827,7 @@ class SearchEngine(object):
         query_faces = faces_features
 
         if self.rmBF_method == 'peking':
-            query_faces = self.remove_bad_faces(faces_features)
+            # query_faces = self.remove_bad_faces(faces_features)
             if use_query_shots == True:
                 query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
                 temp_query_shot_feature = query_shot_feature
@@ -835,6 +835,12 @@ class SearchEngine(object):
                 self.sticher.save_query_shot_face(temp_query_shot_feature, query_shot_feature,
                                                     save_path=os.path.join(root_result_folder, "shot_query_example.jpg"))
                 query_faces.extend(query_shot_feature)
+                # query_faces[0] = None
+                # query_faces[1] = None
+                # for idx in [0,5,6,9,10,21,22,23,24,25,26,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46]:
+                #     query_faces[idx + 4] = None
+                # self.sticher.save_query_shot_face(temp_query_shot_feature, query_faces[4:],
+                #                                     save_path=os.path.join(root_result_folder, "shot_query_example.jpg"))
 
         elif self.rmBF_method == 'landmark_based':
             if self.rmBF_landmarks_params['landmark_type'] == 'dlib':
@@ -865,10 +871,20 @@ class SearchEngine(object):
                     faces_sr_with_shot.append(None)
             # faces_sr_with_shot = [face_feature[0] for face_feature in query_faces]
 
+            remove_bad_face_t = time.time() 
+            total_extract_feat_t = 0
             for idx, face in enumerate(faces_sr_with_shot):
                 if face is not None:
-                    if not self.good_face_checker.isGoodFace(face, classifier_type=classifier_type):
+                    good, extract_feat_t = self.good_face_checker.isGoodFace(face, classifier_type=classifier_type)
+                    if not good:
                         query_faces[idx] = None
+                    total_extract_feat_t += extract_feat_t
+
+            print('Elapsed time for removing bad faces: %f seconds' % (time.time() - remove_bad_face_t - total_extract_feat_t))
+
+            if use_query_shots == True:
+                self.sticher.save_query_shot_face(query_shot_feature, query_faces[4:],
+                                                    save_path=os.path.join(root_result_folder, "shot_query_example.jpg"))
 
         # visulize the query after remove bad faces
         temp = []
@@ -1066,6 +1082,8 @@ if __name__ == '__main__':
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
     names = ["chelsea", "darrin", "garry", "heather", "jack",
                 "jane", "max", "minty", "mo", "zainab"]
+    names = ['heather', 'jack', 'jane', 'max', 'minty', 'mo', 'zainab']
+    names = ['chelsea']
     # names = ['max', 'jack']
     # names = ['minty', 'mo', 'zainab']
     # names = ['archie', 'billy', 'ian', 'janine', 'peggy', 'phil', 'ryan', 'shirley']

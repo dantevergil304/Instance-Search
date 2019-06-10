@@ -8,6 +8,7 @@ from keras import backend as K
 import pickle
 import json
 import os
+import time
 
 
 def isGoodFace_classifier(face_img, classifier_type="linear_svm_fc7"):
@@ -17,6 +18,7 @@ def isGoodFace_classifier(face_img, classifier_type="linear_svm_fc7"):
             config["models"]["Good_bad_face_classifier_folder"], f'{classifier_type}.pkl'), 'rb') as f:
         classifier = pickle.load(f)
 
+    extract_feat_t = time.time()
     # Get Deep Model for extracting features
     if classifier_type == 'linear_svm_fc7':
         vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
@@ -27,7 +29,8 @@ def isGoodFace_classifier(face_img, classifier_type="linear_svm_fc7"):
         out = vgg_model.get_layer('fc6').output
         model = Model(vgg_model.input, out)
     elif classifier_type == 'linear_svm_pool5_gap':
-        model = VGGFace(input_shape=(224, 224, 3), pooling='avg', include_top=False)
+        model = VGGFace(input_shape=(224, 224, 3),
+                        pooling='avg', include_top=False)
     elif classifier_type == 'linear_svm_pool4_gap':
         vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
         pool4 = vgg_model.get_layer('pool4').output
@@ -41,9 +44,10 @@ def isGoodFace_classifier(face_img, classifier_type="linear_svm_fc7"):
 
     feat = extract_feature_from_face(model, face_img)
     K.clear_session()
+    extract_feat_t = time.time() - extract_feat_t
 
     score = classifier.decision_function(feat)
     print('Clf score:', score)
     if classifier.predict(feat) == 0:
-        return True
-    return False
+        return True, extract_feat_t
+    return False, extract_feat_t

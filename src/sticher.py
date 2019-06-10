@@ -84,7 +84,6 @@ class ImageSticher():
                 good_faces_row = None
 
         if faces_row is not None:
-            print(idx)
             if idx % face_per_row != 0:
                 num_face_empty = face_per_row - (idx % face_per_row) 
                 approximate_width_per_face = faces_row.shape[1] // (idx % face_per_row)
@@ -104,7 +103,6 @@ class ImageSticher():
                 result_img = np.vstack((result_img, np.zeros((50, result_img_width, 3))))
                 result_img = np.vstack((result_img, faces_row, good_faces_row))
 
-        print(result_img.shape)
         cv2.imwrite(save_path, result_img)
 
     def save_shots_max_images(self, result, save_folder):
