@@ -581,7 +581,7 @@ class SearchEngine(object):
         print("[+] Search completed")
         # with open(os.path.join('../temp', str(block_interval) + '.pkl'), 'wb') as f:
         #     pickle.dump(result, f)
-        return result[:1000]
+        return result[:5000]
 
     def multiprocess_stage_1(self, query, feature_folder, isStage3=False):
         total_videos = len(os.listdir(self.frames_folder))
@@ -610,7 +610,7 @@ class SearchEngine(object):
 
         result = [item for sublist in result for item in sublist]
         result.sort(reverse=True, key=lambda x: x[1])
-        return result[:1000]
+        return result[:5000]
         #     p = multiprocessing.Process(target=self.uniprocess_stage_1,
         #                                 args=(query, feature_folder,
         #                                       isStage3, (start_idx, end_idx)))
@@ -999,8 +999,6 @@ class SearchEngine(object):
                     root_result_folder, 'stage 2', "result.txt"))
                 write_result(self.query_name, result, os.path.join(
                     root_result_folder, "stage_2.pkl"))
-            # self.sticher.save_shots_max_images(
-            #     result, stage_2_path
 
         if isStage3:
             print(
@@ -1078,12 +1076,14 @@ if __name__ == '__main__':
     query_folder = cfg['raw_data']['queries_folder']
     query_shot_folder = cfg['raw_data']['query_shot_folder']
 
-    # names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
+    names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
+    # names = ['jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
+    # names = ['stacey']
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    names = ["chelsea", "darrin", "garry", "heather", "jack",
-                "jane", "max", "minty", "mo", "zainab"]
-    names = ['heather', 'jack', 'jane', 'max', 'minty', 'mo', 'zainab']
-    names = ['chelsea']
+    # names = ["chelsea", "darrin", "garry", "heather", "jack",
+    #             "jane", "max", "minty", "mo", "zainab"]
+    # names = ['heather', 'jack', 'jane', 'max', 'minty', 'mo', 'zainab']
+    # names = ['mo']
     # names = ['max', 'jack']
     # names = ['minty', 'mo', 'zainab']
     # names = ['archie', 'billy', 'ian', 'janine', 'peggy', 'phil', 'ryan', 'shirley']
@@ -1125,4 +1125,4 @@ if __name__ == '__main__':
         search_engine.query_shot_folder = os.path.join(query_shot_folder, name)
         
         search_engine.searching(
-            query, masks, isStage1=False, isStage2=False, isStage3=False, multiprocess=True, use_query_shots=(search_cfg['use_query_shots'] == 'True'))
+            query, masks, isStage1=True, isStage2=False, isStage3=False, multiprocess=True, use_query_shots=(search_cfg['use_query_shots'] == 'True'))

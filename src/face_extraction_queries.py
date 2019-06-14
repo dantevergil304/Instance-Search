@@ -53,6 +53,7 @@ def detect_face_by_image(query, masks):
             res = cv2.bitwise_and(mask, bbox_mask, mask=ones_mask)
 
             # Compute the overlapping area
+            bbox_px_count = np.count_nonzero(bbox_mask)
             overlap = np.count_nonzero(res)
 
             # if overlap > 0 and y < highest_y:
@@ -62,7 +63,7 @@ def detect_face_by_image(query, masks):
             #     highest_y = y
 
             if face_info[4] > 0.8:
-                if overlap > best_overlap:
+                if overlap / bbox_px_count >= 0.5 and overlap > best_overlap:
                     best_bbox = face_info
                     best_landmark = landmark
                     best_overlap = overlap

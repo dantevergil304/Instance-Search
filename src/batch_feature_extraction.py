@@ -25,8 +25,12 @@ def BatchGenerator(faces_path, frames_path, VIDEO_ID=0, batch_size=2000):
     video_face_files = natsorted(glob.glob(os.path.join(
         faces_path, 'video' + str(VIDEO_ID), '*pickle')))
     for file in video_face_files:
-        with open(file, 'rb') as f:
-            bbs = pickle.load(f)
+        try:
+            with open(file, 'rb') as f:
+                bbs = pickle.load(f)
+        except EOFError:
+            print('Warning: %s causing EOF error!' % file)
+            continue
 
         shot_id = os.path.basename(file).split('.')[0]
 
@@ -106,7 +110,7 @@ def extract_feat(model, faces_path, frames_path, video_id):
 
         predict_t = time.time()
 
-        feat = model.predict(batch, batch_size=20)
+        feat = model.predict(batch, batch_size=15)
         print('Extract time: %d seconds' % (time.time() - predict_t))
         print('*' * 50)
 
@@ -119,7 +123,7 @@ def extract_feat(model, faces_path, frames_path, video_id):
 
 def extract_database_faces_features(feature_extractor, frames_path, faces_path, features_path):
     start_t = time.time()
-    for video_id in range(140, 244):
+    for video_id in range(237, 244):
         print('\nProcessing video %d' % video_id)
         if os.path.exists(os.path.join(features_path, 'video' + str(video_id) + '.pkl')):
             print(f'File video{video_id}.pkl already existed!!!')
@@ -162,20 +166,20 @@ if __name__ == '__main__':
     model = Model(vgg_model.input, out)
     print("[+] Loaded VGGFace model")
 
-    start_t = time.time()
-    for video_id in range(0, 244):
-        print('\nProcessing video %d' % video_id)
-        extract_feat(model, faces_folder, frames_folder,
-                     '../features/order_and_info', video_id)
-        all_features = None
-        for feat in extract_feat(model, faces_folder, frames_folder, '../features/order_and_info', video_id):
-            if all_features is None:
-                all_features = feat
-            else:
-                all_features = np.concatenate((all_features, feat))
+    extract_database_faces_features(model, frames_folder, faces_folder, default_feature_folder)
+    # start_t = time.time()
+    # for video_id in range(0, 100):
+    #     print('\nProcessing video %d' % video_id)
+    #     extract_feat(model, faces_folder, frames_folder, video_id)
+    #     # all_features = None
+    #     # for feat in extract_feat(model, faces_folder, frames_folder, video_id):
+    #     #     if all_features is None:
+    #     #         all_features = feat
+    #     #     else:
+    #     #         all_features = np.concatenate((all_features, feat))
 
-        np.save(os.path.join(default_feature_folder, 'video' +
-                             str(video_id) + '_feat.npy'), all_features)
+    #     # np.save(os.path.join(default_feature_folder, 'video' +
+    #     #                      str(video_id) + '_feat.npy'), all_features)
 
-    print('TOTAL ELAPSED TIME: %d minutes %d seconds' %
-          ((time.time() - start_t)//60, (time.time() - start_t) % 60))
+    # print('TOTAL ELAPSED TIME: %d minutes %d seconds' %
+    #       ((time.time() - start_t)//60, (time.time() - start_t) % 60))

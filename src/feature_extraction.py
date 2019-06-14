@@ -47,7 +47,7 @@ def extract_database_faces_features(model, root_frames_folder, root_faces_folder
     begin = time.time()
     num_of_new_files = 0
 
-    for videoId in range(2):
+    for videoId in range(244):
         video_features_dict = dict()
 
         frames_folder = os.path.join(
