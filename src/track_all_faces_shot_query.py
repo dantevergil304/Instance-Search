@@ -62,13 +62,14 @@ def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs
         # For checking if point existed
         pset = dict(zip([tuple(p[0]) for p in PTS_LIST], range(len(PTS_LIST))))
 
-        face_pset = set()
-        for p in p0:
-            if tuple(p[0]) in pset:
-                face_pset.add(pset[tuple(p[0])])
-            else:
-                PTS_LIST.append(p)
-                face_pset.add(len(PTS_LIST)-1)
+        if p0 is not None:
+            face_pset = set()
+            for p in p0:
+                if tuple(p[0]) in pset:
+                    face_pset.add(pset[tuple(p[0])])
+                else:
+                    PTS_LIST.append(p)
+                    face_pset.add(len(PTS_LIST)-1)
 
         FACE_TRACKS.append([(begin, face_offset, face_pset)])
 
@@ -76,6 +77,7 @@ def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs
     PTS_LIST_IDX = np.arange(NUM_UNIQUE_PTS).tolist()
 
     print('PTS LIST', PTS_LIST)
+    print("PTS LIST INDEX", PTS_LIST_IDX)
     print('NUM UNIQUE PTS', NUM_UNIQUE_PTS)
 
     # Track faces in next frames
@@ -89,7 +91,7 @@ def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs
                 old_topic_frame_gray, frame_gray, np.array(PTS_LIST, np.float32), None, **lk_params)
 
             PTS_LIST = np.round(p1[st == 1].reshape(-1, 1, 2)).tolist()
-            PTS_LIST_IDX = np.array(PTS_LIST_IDX)[st.squeeze() == 1].tolist()
+            PTS_LIST_IDX = np.array(PTS_LIST_IDX)[st.squeeze() == 1].reshape(-1).tolist()
 
         # detect new feature points
         faces_mask = np.zeros_like(frame_gray)
@@ -114,6 +116,7 @@ def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs
             for face_offset, bb in enumerate(bbs):
                 # Check which points is inside bbox
                 face_pset = set()
+                print("PTS LIST INDEX", PTS_LIST_IDX)
                 for i, p in enumerate(PTS_LIST):
                     p_idx = PTS_LIST_IDX[i]
                     if p[0][0] >= bb[0] and p[0][1] >= bb[1] \
@@ -197,6 +200,7 @@ def getAllFaceTrackShotQuery(topic_frame_path, shot_path):
 
     num_boundaries = len(boundaries)
     for idx in range(num_boundaries):
+        print(f'[+] Processing Boundary {idx}')
         begin = boundaries[idx]
         if idx == num_boundaries - 1:
             end = len(all_frames) - 1 
@@ -285,12 +289,13 @@ def main():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    # topic_frame_path = os.path.join(query_folder, 'heather.1.src.png')
-    # topic_mask_path = os.path.join(query_folder, 'heather.1.mask.png')
+    # topic_frame_path = os.path.join(query_folder, 'ian.2.src.png')
+    # topic_mask_path = os.path.join(query_folder, 'ian.2.mask.png')
     # shot_path = os.path.join(
-    #     query_shot_folder, 'heather', 'shot0_769.mp4')
+    #     query_shot_folder, 'ian', 'shot0_387.mp4')
 
     # getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
+
     topic_file = os.path.join(info_folder, 'ins.auto.topics.2019.xml')
     print(topic_file)
     tree = ET.parse(topic_file)
@@ -302,7 +307,7 @@ def main():
             info_dict[image.attrib['src']] = image.attrib['shotID']
  
     names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
-    names = ['bradley']
+    names = ['pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
     for name in names:
         for i in range(1, 5):
             topic_frame_path = os.path.join(
