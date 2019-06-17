@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import glob
+import xml.etree.ElementTree as ET
 
 
 def splitShotBoundary(all_frames):
@@ -83,11 +84,12 @@ def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs
         frame_gray = cv2.equalizeHist(frame_gray)
 
         # calculate opitcal flow
-        p1, st, err = cv2.calcOpticalFlowPyrLK(
-            old_topic_frame_gray, frame_gray, np.array(PTS_LIST, np.float32), None, **lk_params)
+        if PTS_LIST != []:
+            p1, st, err = cv2.calcOpticalFlowPyrLK(
+                old_topic_frame_gray, frame_gray, np.array(PTS_LIST, np.float32), None, **lk_params)
 
-        PTS_LIST = np.round(p1[st == 1].reshape(-1, 1, 2)).tolist()
-        PTS_LIST_IDX = np.array(PTS_LIST_IDX)[st.squeeze() == 1].tolist()
+            PTS_LIST = np.round(p1[st == 1].reshape(-1, 1, 2)).tolist()
+            PTS_LIST_IDX = np.array(PTS_LIST_IDX)[st.squeeze() == 1].tolist()
 
         # detect new feature points
         faces_mask = np.zeros_like(frame_gray)
@@ -108,35 +110,39 @@ def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs
                     NUM_UNIQUE_PTS += 1
 
         # Add to face track
-        for face_offset, bb in enumerate(bbs):
-            # Check which points is inside bbox
-            face_pset = set()
-            for i, p in enumerate(PTS_LIST):
-                p_idx = PTS_LIST_IDX[i]
-                if p[0][0] >= bb[0] and p[0][1] >= bb[1] \
-                        and p[0][0] <= bb[2] and p[0][1] <= bb[3]:
-                    face_pset.add(p_idx)
+        if PTS_LIST != []:
+            for face_offset, bb in enumerate(bbs):
+                # Check which points is inside bbox
+                face_pset = set()
+                for i, p in enumerate(PTS_LIST):
+                    p_idx = PTS_LIST_IDX[i]
+                    if p[0][0] >= bb[0] and p[0][1] >= bb[1] \
+                            and p[0][0] <= bb[2] and p[0][1] <= bb[3]:
+                        face_pset.add(p_idx)
 
-            # Check if threshold is large enough for adding to existed face track,
-            # or it should belong to a new face track
-            thresh = []
-            for track in FACE_TRACKS:
-                latest_face = track[-1]
-                num_shared_points = len(latest_face[2].intersection(face_pset))
-                num_all_points = len(latest_face[2].union(face_pset))
+                # Check if threshold is large enough for adding to existed face track,
+                # or it should belong to a new face track
+                thresh = []
+                for track in FACE_TRACKS:
+                    latest_face = track[-1]
+                    num_shared_points = len(latest_face[2].intersection(face_pset))
+                    num_all_points = len(latest_face[2].union(face_pset))
 
-                if num_all_points == 0:
-                    thresh.append(0)
+                    if num_all_points == 0:
+                        thresh.append(0)
+                    else:
+                        thresh.append(num_shared_points / num_all_points)
+
+                print(thresh)
+                if thresh != []:
+                    largest_thresh_idx = np.argmax(thresh)
                 else:
-                    thresh.append(num_shared_points / num_all_points)
-
-            print(thresh)
-            largest_thresh_idx = np.argmax(thresh)
-            if thresh[largest_thresh_idx] > 0.3:
-                FACE_TRACKS[largest_thresh_idx].append(
-                    (begin+frame_offset+1, face_offset, face_pset))
-            else:
-                FACE_TRACKS.append([(begin+frame_offset+1, face_offset, face_pset)])
+                    largest_thresh_idx = None
+                if largest_thresh_idx is not None and thresh[largest_thresh_idx] > 0.3:
+                    FACE_TRACKS[largest_thresh_idx].append(
+                        (begin+frame_offset+1, face_offset, face_pset))
+                else:
+                    FACE_TRACKS.append([(begin+frame_offset+1, face_offset, face_pset)])
         old_topic_frame_gray = frame_gray.copy()
 
     # Visualize Face Track
@@ -262,9 +268,9 @@ def getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path):
         else:
             visualize_faces = np.hstack((visualize_faces, face))
 
-    cv2.imshow('visualize face track', visualize_faces)
-    cv2.waitKey()
-    cv2.destroyAllWindows()
+    # cv2.imshow('visualize face track', visualize_faces)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
 
     return track_faces, visualize_faces, topic_offset
 
@@ -279,13 +285,55 @@ def main():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    topic_frame_path = os.path.join(query_folder, 'heather.1.src.png')
-    topic_mask_path = os.path.join(query_folder, 'heather.1.mask.png')
-    shot_path = os.path.join(
-        query_shot_folder, 'heather', 'shot0_769.mp4')
+    # topic_frame_path = os.path.join(query_folder, 'heather.1.src.png')
+    # topic_mask_path = os.path.join(query_folder, 'heather.1.mask.png')
+    # shot_path = os.path.join(
+    #     query_shot_folder, 'heather', 'shot0_769.mp4')
 
-    # getAllFaceTrackShotQuery(topic_frame_path, shot_path)
-    getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
+    # getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
+    topic_file = os.path.join(info_folder, 'ins.auto.topics.2019.xml')
+    print(topic_file)
+    tree = ET.parse(topic_file)
+    root = tree.getroot()
+ 
+    info_dict = dict()
+    for topic in root.findall('videoInstanceTopic'):
+        for image in topic.findall('imageExample'):
+            info_dict[image.attrib['src']] = image.attrib['shotID']
+ 
+    names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
+    names = ['bradley']
+    for name in names:
+        for i in range(1, 5):
+            topic_frame_path = os.path.join(
+                query_folder, f'{name}.{i}.src.png')
+            topic_mask_path = os.path.join(
+                query_folder, f'{name}.{i}.mask.png')
+            shot_path = os.path.join(
+                query_shot_folder, f'{name}', info_dict[f'{name}.{i}.src.png'] + '.mp4')
+ 
+            print('[+] Topic frame path', topic_frame_path)
+            print('[+] Topic mask path', topic_mask_path)
+            print('[+] Topic shot path', shot_path)
+ 
+            track_faces, visualize_faces, topic_face_index = getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
+ 
+            shot_face_folder = os.path.join(
+                query_folder, 'shot_query_faces', f'{name}', f'{i}')
+            if not os.path.exists(shot_face_folder):
+                os.makedirs(shot_face_folder, exist_ok=True)
+            for idx, face in enumerate(track_faces):
+                cv2.imwrite(os.path.join(shot_face_folder,
+                                         f'{name}.{idx}.face.png'), face)
+                with open(os.path.join(shot_face_folder, f'topic_face_index.txt'), 'w') as f:
+                    f.write(str(topic_face_index))
+ 
+            visualize_face_folder = os.path.join(
+                query_folder, 'visualize_shot_query_faces', f'{name}')
+            if not os.path.exists(visualize_face_folder):
+                os.makedirs(visualize_face_folder, exist_ok=True)
+            cv2.imwrite(os.path.join(visualize_face_folder,
+                                     f'facetrack.{i}.png'), visualize_faces)
 
 
 if __name__ == '__main__':
