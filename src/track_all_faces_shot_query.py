@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import glob
+import time
 import xml.etree.ElementTree as ET
 
 
@@ -20,7 +21,7 @@ def splitShotBoundary(all_frames):
 
         diff = np.sum((prev_frame_gray - frame_gray) ** 2) / \
               (frame_gray.shape[0] * frame_gray.shape[1])
-        if diff > 80:
+        if diff > 70:
             shot_boundaries.append(frame_offset) 
     return shot_boundaries
 
@@ -199,6 +200,24 @@ def getAllFaceTrackShotQuery(topic_frame_path, shot_path):
     all_visualize_face_tracks = []
 
     num_boundaries = len(boundaries)
+    print('Number of boundary shots', num_boundaries)
+
+    # Visualize Boundary shots
+    # for idx in range(num_boundaries):
+    #     begin = boundaries[idx]
+    #     if idx == num_boundaries - 1:
+    #         end = len(all_frames) - 1 
+    #     else:
+    #         end = boundaries[idx+1]-1 
+    #     for frame_idx in range(begin, end+1):
+    #         resize_frame = cv2.resize(all_frames[frame_idx], None, fx=0.5, fy=0.5)
+    #         cv2.imshow(f'boundary shot {idx}', resize_frame) 
+    #         cv2.waitKey(1)
+    #         
+    #     cv2.waitKey(0) 
+    #     cv2.destroyAllWindows()
+        
+
     for idx in range(num_boundaries):
         print(f'[+] Processing Boundary {idx}')
         begin = boundaries[idx]
@@ -251,9 +270,14 @@ def getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path):
 
         tracks_frame_with_largest_overlapped_mask[track_idx] = (min_topic_offset_distance, -best_overlap)
  
-    print(tracks_frame_with_largest_overlapped_mask)
+    print('tracks frame have with largest overlapped mask', tracks_frame_with_largest_overlapped_mask)
     correct_track_key = tracks_frame_with_largest_overlapped_mask.index(min(tracks_frame_with_largest_overlapped_mask))
     print('correct track key', correct_track_key)
+
+
+    # check if no track overlapped the mask
+    if tracks_frame_with_largest_overlapped_mask[correct_track_key][1] == 0:
+        return [], None, topic_offset 
 
     default_face_height = 50
     visualize_faces = None
@@ -289,10 +313,10 @@ def main():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    # topic_frame_path = os.path.join(query_folder, 'ian.2.src.png')
-    # topic_mask_path = os.path.join(query_folder, 'ian.2.mask.png')
+    # topic_frame_path = os.path.join(query_folder, 'denise.4.src.png')
+    # topic_mask_path = os.path.join(query_folder, 'denise.4.mask.png')
     # shot_path = os.path.join(
-    #     query_shot_folder, 'ian', 'shot0_387.mp4')
+    #     query_shot_folder, 'denise', 'shot236_36.mp4')
 
     # getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
 
@@ -307,7 +331,8 @@ def main():
             info_dict[image.attrib['src']] = image.attrib['shotID']
  
     names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
-    names = ['pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
+    names = ['phil', 'jane', 'jack', 'dot', 'stacey']
+    # names = ['pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
     for name in names:
         for i in range(1, 5):
             topic_frame_path = os.path.join(
@@ -337,8 +362,9 @@ def main():
                 query_folder, 'visualize_shot_query_faces', f'{name}')
             if not os.path.exists(visualize_face_folder):
                 os.makedirs(visualize_face_folder, exist_ok=True)
-            cv2.imwrite(os.path.join(visualize_face_folder,
-                                     f'facetrack.{i}.png'), visualize_faces)
+            if visualize_faces is not None:
+                cv2.imwrite(os.path.join(visualize_face_folder,
+                                         f'facetrack.{i}.png'), visualize_faces)
 
 
 if __name__ == '__main__':
