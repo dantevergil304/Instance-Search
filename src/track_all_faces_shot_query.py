@@ -11,23 +11,20 @@ import sys
 import glob
 
 
-def getAllFaceTracks(topic_frame_path, shot_path):
-    # Get all frames of shot and topic frame offset
-    all_frames, topic_offset = getCorrectFrameInShot(
-        topic_frame_path, shot_path)
+def splitShotBoundary(all_frames):
+    shot_boundaries = [0]
+    for frame_offset in range(1, len(all_frames)):
+        prev_frame_gray = cv2.cvtColor(all_frames[frame_offset-1], cv2.COLOR_BGR2GRAY )
+        frame_gray = cv2.cvtColor(all_frames[frame_offset], cv2.COLOR_BGR2GRAY )
 
-    # Create MTCNN session
-    sess = tf.Session()
-    pnet, rnet, onet = lib.create_mtcnn(sess, None)
+        diff = np.sum((prev_frame_gray - frame_gray) ** 2) / \
+              (frame_gray.shape[0] * frame_gray.shape[1])
+        if diff > 80:
+            shot_boundaries.append(frame_offset) 
+    return shot_boundaries
 
-    # Detect all faces in frames
-    all_faces = []
-    all_bbs = []
-    for frame in all_frames:
-        faces, bbs, _ = extract_faces_from_image(frame, pnet, rnet, onet)
-        all_faces.append(faces)
-        all_bbs.append(bbs)
 
+def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs, begin, end):
     print('[+] INITIALIZE PARAMETERS FOR KLT TRACKER')
     # params for ShiTomasi corner detection
     feature_params = dict(maxCorners=100,
@@ -53,7 +50,7 @@ def getAllFaceTracks(topic_frame_path, shot_path):
     # set of points index that face referring to)
     FACE_TRACKS = []
 
-    for face_offset, bb in enumerate(all_bbs[0]):
+    for face_offset, bb in enumerate(all_bbs[begin]):
         faces_mask = np.zeros_like(old_topic_frame_gray)
         cv2.rectangle(faces_mask, (bb[0], bb[1]),
                       (bb[2], bb[3]), 255, -1)
@@ -72,7 +69,7 @@ def getAllFaceTracks(topic_frame_path, shot_path):
                 PTS_LIST.append(p)
                 face_pset.add(len(PTS_LIST)-1)
 
-        FACE_TRACKS.append([(0, face_offset, face_pset)])
+        FACE_TRACKS.append([(begin, face_offset, face_pset)])
 
     NUM_UNIQUE_PTS = len(PTS_LIST)
     PTS_LIST_IDX = np.arange(NUM_UNIQUE_PTS).tolist()
@@ -81,7 +78,7 @@ def getAllFaceTracks(topic_frame_path, shot_path):
     print('NUM UNIQUE PTS', NUM_UNIQUE_PTS)
 
     # Track faces in next frames
-    for frame_offset, (frame, bbs) in enumerate(zip(all_frames[1:], all_bbs[1:])):
+    for frame_offset, (frame, bbs) in enumerate(zip(all_frames[(begin+1):(end+1)], all_bbs[(begin+1):(end+1)])):
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         frame_gray = cv2.equalizeHist(frame_gray)
 
@@ -137,17 +134,19 @@ def getAllFaceTracks(topic_frame_path, shot_path):
             largest_thresh_idx = np.argmax(thresh)
             if thresh[largest_thresh_idx] > 0.3:
                 FACE_TRACKS[largest_thresh_idx].append(
-                    (frame_offset+1, face_offset, face_pset))
+                    (begin+frame_offset+1, face_offset, face_pset))
             else:
-                FACE_TRACKS.append([(frame_offset+1, face_offset, face_pset)])
+                FACE_TRACKS.append([(begin+frame_offset+1, face_offset, face_pset)])
         old_topic_frame_gray = frame_gray.copy()
 
     # Visualize Face Track
+    VISUALIZE_FACE_TRACKS = []
     default_face_height = 50
+    print("#Face tracks found", len(FACE_TRACKS))
     for idx, track in enumerate(FACE_TRACKS):
         visualize_faces = None
-        if len(track) <= 4:
-            continue
+        # if len(track) <= 4:
+        #     continue
         for frame_offset, face_offset, _ in track:
             face = all_faces[frame_offset][face_offset]
             height, width = face.shape[:2]
@@ -159,11 +158,116 @@ def getAllFaceTracks(topic_frame_path, shot_path):
                 visualize_faces = face
             else:
                 visualize_faces = np.hstack((visualize_faces, face))
+        VISUALIZE_FACE_TRACKS.append(visualize_faces)
 
-        cv2.imshow(f'face track {idx}', visualize_faces)
+        # cv2.imshow(f'face track {idx}', visualize_faces)
 
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
+    return FACE_TRACKS, VISUALIZE_FACE_TRACKS
+
+
+def getAllFaceTrackShotQuery(topic_frame_path, shot_path):
+    # Get all frames of shot and topic frame offset
+    all_frames, topic_offset = getCorrectFrameInShot(
+        topic_frame_path, shot_path)
+
+    # Create MTCNN session
+    sess = tf.Session()
+    pnet, rnet, onet = lib.create_mtcnn(sess, None)
+
+    # Detect all faces in frames
+    all_faces = []
+    all_bbs = []
+    for frame in all_frames:
+        faces, bbs, _ = extract_faces_from_image(frame, pnet, rnet, onet)
+        all_faces.append(faces)
+        all_bbs.append(bbs)
+
+    boundaries = splitShotBoundary(all_frames)
+
+    all_face_tracks = []
+    all_visualize_face_tracks = []
+
+    num_boundaries = len(boundaries)
+    for idx in range(num_boundaries):
+        begin = boundaries[idx]
+        if idx == num_boundaries - 1:
+            end = len(all_frames) - 1 
+        else:
+            end = boundaries[idx+1]-1 
+
+        face_tracks, visualize_face_tracks = getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs, begin, end)
+        
+        all_face_tracks.extend(face_tracks)
+        all_visualize_face_tracks.extend(visualize_face_tracks)
+
+    # for idx, face_track in enumerate(all_visualize_face_tracks):
+    #     cv2.imshow(f'face track {idx}', face_track)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
+
+    return all_face_tracks, all_visualize_face_tracks, all_frames, all_faces, all_bbs, topic_offset
+
+
+def getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path):
+    all_tracks, all_visualize_tracks, all_frames, all_faces, all_bbs, topic_offset = getAllFaceTrackShotQuery(topic_frame_path, shot_path) 
+
+    mask_frame = cv2.imread(topic_mask_path, 0)
+    mask_frame = cv2.resize(mask_frame, (768, 576))
+
+    print('Topic frame offset', topic_offset)
+
+    tracks_frame_with_largest_overlapped_mask = [np.inf] * len(all_tracks)
+ 
+    for track_idx, track in enumerate(all_tracks):
+        best_overlap = 0
+        best_overlap_idx = np.inf
+        min_topic_offset_distance = np.inf
+        for fr_offset, bb_offset, _ in track:
+            bb = all_bbs[fr_offset][bb_offset]
+            face_mask = np.zeros_like(mask_frame)
+            print('bbox', bb)
+            cv2.rectangle(face_mask, (bb[0], bb[1]), (bb[2], bb[3]), 255, -1)
+
+            face_mask_num_px = np.count_nonzero(face_mask)
+            overlapped_mask_num_px = np.count_nonzero(cv2.bitwise_and(face_mask, mask_frame))
+            # if overlapped_mask_num_px / face_mask_num_px >= 0.5 and overlapped_mask_num_px > best_overlap:
+            # if overlapped_mask_num_px > best_overlap:
+            if overlapped_mask_num_px / face_mask_num_px >= 0.5 and abs(fr_offset-topic_offset) < min_topic_offset_distance:
+                best_overlap = overlapped_mask_num_px
+                best_overlap_idx = fr_offset
+                min_topic_offset_distance = abs(fr_offset-topic_offset)
+
+        tracks_frame_with_largest_overlapped_mask[track_idx] = (min_topic_offset_distance, -best_overlap)
+ 
+    print(tracks_frame_with_largest_overlapped_mask)
+    correct_track_key = tracks_frame_with_largest_overlapped_mask.index(min(tracks_frame_with_largest_overlapped_mask))
+    print('correct track key', correct_track_key)
+
+    default_face_height = 50
+    visualize_faces = None
+    track_bbs = all_tracks[correct_track_key]
+    track_faces = []
+    for fr_offset, face_offset, _ in track_bbs:
+        face = all_faces[fr_offset][face_offset]
+        track_faces.append(face)
+        height, width = face.shape[:2]
+        face_width = int(default_face_height * width / height)
+
+        face = cv2.resize(face, (face_width, default_face_height))
+
+        if visualize_faces is None:
+            visualize_faces = face
+        else:
+            visualize_faces = np.hstack((visualize_faces, face))
+
+    cv2.imshow('visualize face track', visualize_faces)
     cv2.waitKey()
     cv2.destroyAllWindows()
+
+    return track_faces, visualize_faces, topic_offset
+
 
 
 def main():
@@ -175,12 +279,13 @@ def main():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    topic_frame_path = os.path.join(query_folder, 'minty.4.src.png')
-    topic_mask_path = os.path.join(query_folder, 'minty.4.mask.png')
+    topic_frame_path = os.path.join(query_folder, 'heather.1.src.png')
+    topic_mask_path = os.path.join(query_folder, 'heather.1.mask.png')
     shot_path = os.path.join(
-        query_shot_folder, 'minty', 'shot0_1155.mp4')
+        query_shot_folder, 'heather', 'shot0_769.mp4')
 
-    getAllFaceTracks(topic_frame_path, shot_path)
+    # getAllFaceTrackShotQuery(topic_frame_path, shot_path)
+    getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
 
 
 if __name__ == '__main__':
