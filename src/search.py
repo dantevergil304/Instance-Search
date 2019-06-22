@@ -737,6 +737,7 @@ class SearchEngine(object):
 
         # Detect faces in query
         query_faces, bb, landmarks = detect_face_by_path(query, mask)
+        
         K.clear_session()
         print("[+] Detected faces from query")
 
@@ -829,7 +830,15 @@ class SearchEngine(object):
         if self.rmBF_method == 'peking':
             # query_faces = self.remove_bad_faces(faces_features)
             if use_query_shots == True:
-                query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
+                query_shot_feature_path = os.path.join(
+                    root_result_folder, 'query_shot_feature.pkl')
+                if not os.path.exists(query_shot_feature_path):
+                    query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
+                    with open(query_shot_feature_path, 'wb') as f:
+                        pickle.dump(query_shot_feature, f)
+                else:
+                    with open(query_shot_feature_path, 'rb') as f:
+                        query_shot_feature = pickle.load(f)
                 temp_query_shot_feature = query_shot_feature
                 query_shot_feature = self.remove_bad_faces(query_shot_feature)
                 self.sticher.save_query_shot_face(temp_query_shot_feature, query_shot_feature,
@@ -860,7 +869,15 @@ class SearchEngine(object):
             classifier_type = self.rmBF_classifier_params['model']
             query_faces = faces_features
             if use_query_shots == True:
-                query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
+                query_shot_feature_path = os.path.join(
+                    root_result_folder, 'query_shot_feature.pkl')
+                if not os.path.exists(query_shot_feature_path):
+                    query_shot_feature = self.extract_query_shot_feature(self.query_shot_folder)
+                    with open(query_shot_feature_path, 'wb') as f:
+                        pickle.dump(query_shot_feature, f)
+                else:
+                    with open(query_shot_feature_path, 'rb') as f:
+                        query_shot_feature = pickle.load(f)
                 query_faces.extend(query_shot_feature)
             
             faces_sr_with_shot = []
@@ -1098,7 +1115,6 @@ if __name__ == '__main__':
             name + f".2.src.{ext}",
             name + f".3.src.{ext}",
             name + f".4.src.{ext}"
-
         ]
         masks = [
             name + f".1.mask.{ext}",

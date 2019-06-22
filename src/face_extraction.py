@@ -25,6 +25,7 @@ def extract_faces_from_image(input_img, pnet, rnet, onet):
 
     faces = []
     bbs = []
+    scores = []
     for index, box in enumerate(boxes):
         x1, y1, x2, y2 = int(box[0]), int(
             box[1]), int(box[2]), int(box[3])
@@ -38,7 +39,8 @@ def extract_faces_from_image(input_img, pnet, rnet, onet):
             x2 = img.shape[1]
         faces.append(input_img[y1:y2, x1:x2])
         bbs.append((x1, y1, x2, y2))
-    return faces, bbs
+        scores.append(box[4])
+    return faces, bbs, scores
 
 
 def extract_faces_from_frames_folder(input_frames_folder, output_faces_folder, output_landmarks_folder):

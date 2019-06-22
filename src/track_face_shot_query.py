@@ -203,7 +203,7 @@ def getFaceTracksInShot(topic_frame_path, topic_mask_path, shot_path):
     all_tracked_faces = []
     all_tracked_bbs = []
     print("Numbers of frames", len(all_frames))
-    for frame_offset, (faces, bbs, frame, scores) in enumerate(zip(all_faces[:20], all_bbs[:20], all_frames[:20], all_scores[:20])):
+    for frame_offset, (faces, bbs, frame, scores) in enumerate(zip(all_faces, all_bbs, all_frames, all_scores)):
         print(frame_offset, end=' ')
         for face, bb, score in zip(faces, bbs, scores):
             tracked_faces, tracked_bbs = getFaceTrackOfFaceBackAndForth(face, bb, frame_offset, all_faces, all_bbs, all_frames)
@@ -281,36 +281,43 @@ def getCorrectFaceTrackInShotType2(topic_frame_path, topic_mask_path, shot_path)
     print('Topic frame offset', topic_offset)
 
     all_tracks = removeOverlappedTracks(all_tracked_faces, all_tracked_bbs)
-    tracks_frame_with_largest_overlapped_mask = np.full(len(all_tracks), np.inf)
+    tracks_frame_with_largest_overlapped_mask = [np.inf] * len(all_tracks)
 
     for track in all_tracks:
         track_bbs = sorted(all_tracks[track], key=lambda x: x[0])
         best_overlap = 0
         best_overlap_idx = np.inf 
+        min_topic_offset_distance = np.inf
         for fr, bb in track_bbs:
             face_mask = np.zeros_like(mask_frame)
             cv2.rectangle(face_mask, (bb[0], bb[1]), (bb[2], bb[3]), 255, -1)
 
             face_mask_num_px = np.count_nonzero(face_mask)
             overlapped_mask_num_px = np.count_nonzero(cv2.bitwise_and(face_mask, mask_frame))
-            if overlapped_mask_num_px / face_mask_num_px >= 0.5 and overlapped_mask_num_px > best_overlap:
+            # if overlapped_mask_num_px / face_mask_num_px >= 0.5 and overlapped_mask_num_px > best_overlap:
             # if overlapped_mask_num_px > best_overlap:
+            if overlapped_mask_num_px / face_mask_num_px >= 0.5 and abs(fr-topic_offset) < min_topic_offset_distance:
                 best_overlap = overlapped_mask_num_px
                 best_overlap_idx = fr
+                min_topic_offset_distance = abs(fr-topic_offset)
 
-        tracks_frame_with_largest_overlapped_mask[track] = best_overlap_idx
+        tracks_frame_with_largest_overlapped_mask[track] = (min_topic_offset_distance, -best_overlap)
     
     print(tracks_frame_with_largest_overlapped_mask)
-    distance_from_topic_offset = np.absolute(tracks_frame_with_largest_overlapped_mask - topic_offset)
-    print(distance_from_topic_offset)
-    correct_track_key = np.argmin(distance_from_topic_offset)
+    # distance_from_topic_offset = np.absolute(tracks_frame_with_largest_overlapped_mask - topic_offset)
+    # tracks_frame_with_largest_overlapped_mask = min(tracks_frame_with_largest_overlapped_mask)
+    # print(distance_from_topic_offset)
+    # correct_track_key = np.argmin(distance_from_topic_offset)
+    correct_track_key = tracks_frame_with_largest_overlapped_mask.index(min(tracks_frame_with_largest_overlapped_mask))
     print('correct track key', correct_track_key)
 
     default_face_height = 50
     visualize_faces = None
     track_bbs = sorted(all_tracks[correct_track_key], key=lambda x: x[0])
+    track_faces = []
     for face in track_bbs:
         face = all_tracks[correct_track_key][face]
+        track_faces.append(face)
         height, width = face.shape[:2]
         face_width = int(default_face_height * width / height)
 
@@ -324,6 +331,8 @@ def getCorrectFaceTrackInShotType2(topic_frame_path, topic_mask_path, shot_path)
     cv2.imshow('visualize face track', visualize_faces)
     cv2.waitKey()
     cv2.destroyAllWindows()
+
+    return track_faces, visualize_faces, topic_offset
 
 
 def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
@@ -623,15 +632,58 @@ def main_track_type2():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    topic_frame_path = os.path.join(query_folder, 'chelsea.2.src.png')
-    topic_mask_path = os.path.join(query_folder, 'chelsea.2.mask.png')
+    topic_frame_path = os.path.join(query_folder, 'chelsea.3.src.png')
+    topic_mask_path = os.path.join(query_folder, 'chelsea.3.mask.png')
     shot_path = os.path.join(
-        query_shot_folder, 'chelsea', 'shot0_1059.mp4')
+        query_shot_folder, 'chelsea', 'shot0_1146.mp4')
 
 
     # all_tracked_faces, all_tracked_bbs = getFaceTracksInShot(topic_frame_path, topic_mask_path, shot_path)
     # removeOverlappedTracks(all_tracked_faces, all_tracked_bbs)
     getCorrectFaceTrackInShotType2(topic_frame_path, topic_mask_path, shot_path)
+
+    # topic_file = os.path.join(info_folder, 'ins.auto.topics.2019.xml')
+    # print(topic_file)
+    # tree = ET.parse(topic_file)
+    # root = tree.getroot()
+
+    # info_dict = dict()
+    # for topic in root.findall('videoInstanceTopic'):
+    #     for image in topic.findall('imageExample'):
+    #         info_dict[image.attrib['src']] = image.attrib['shotID']
+
+    # names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
+    # names = ['bradley']
+    # for name in names:
+    #     for i in range(1, 5):
+    #         topic_frame_path = os.path.join(
+    #             query_folder, f'{name}.{i}.src.png')
+    #         topic_mask_path = os.path.join(
+    #             query_folder, f'{name}.{i}.mask.png')
+    #         shot_path = os.path.join(
+    #             query_shot_folder, f'{name}', info_dict[f'{name}.{i}.src.png'] + '.mp4')
+
+    #         print(topic_frame_path)
+    #         print(topic_mask_path)
+    #         print(shot_path)
+    #         track_faces, visualize_faces, topic_face_index = getCorrectFaceTrackInShotType2(topic_frame_path, topic_mask_path, shot_path)
+
+    #         shot_face_folder = os.path.join(
+    #             query_folder, 'shot_query_faces', f'{name}', f'{i}')
+    #         if not os.path.exists(shot_face_folder):
+    #             os.makedirs(shot_face_folder, exist_ok=True)
+    #         for idx, face in enumerate(track_faces):
+    #             cv2.imwrite(os.path.join(shot_face_folder,
+    #                                      f'{name}.{idx}.face.png'), face)
+    #             with open(os.path.join(shot_face_folder, f'topic_face_index.txt'), 'w') as f:
+    #                 f.write(str(topic_face_index))
+
+    #         visualize_face_folder = os.path.join(
+    #             query_folder, 'visualize_shot_query_faces', f'{name}')
+    #         if not os.path.exists(visualize_face_folder):
+    #             os.mkdir(visualize_face_folder)
+    #         cv2.imwrite(os.path.join(visualize_face_folder,
+    #                                  f'facetrack.{i}.png'), visualize_faces)
 
 
 if __name__ == '__main__':

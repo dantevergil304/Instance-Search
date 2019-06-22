@@ -63,8 +63,8 @@ def getAllFaceTracksOfVideoShot(topic_frame_path, all_frames, all_faces, all_bbs
         # For checking if point existed
         pset = dict(zip([tuple(p[0]) for p in PTS_LIST], range(len(PTS_LIST))))
 
+        face_pset = set()
         if p0 is not None:
-            face_pset = set()
             for p in p0:
                 if tuple(p[0]) in pset:
                     face_pset.add(pset[tuple(p[0])])
@@ -320,7 +320,8 @@ def main():
 
     # getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
 
-    topic_file = os.path.join(info_folder, 'ins.auto.topics.2019.xml')
+    # topic_file = os.path.join(info_folder, 'ins.auto.topics.2019.xml')
+    topic_file = os.path.join(info_folder, 'ins.progress.topics.2019.xml')
     print(topic_file)
     tree = ET.parse(topic_file)
     root = tree.getroot()
@@ -331,8 +332,7 @@ def main():
             info_dict[image.attrib['src']] = image.attrib['shotID']
  
     names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
-    names = ['phil', 'jane', 'jack', 'dot', 'stacey']
-    # names = ['pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
+    names = ['shirley']
     for name in names:
         for i in range(1, 5):
             topic_frame_path = os.path.join(

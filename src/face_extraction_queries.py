@@ -1,3 +1,5 @@
+from deep_learning_utils import extendBB
+
 import sys
 import numpy as np
 import cv2
@@ -63,7 +65,7 @@ def detect_face_by_image(query, masks):
             #     highest_y = y
 
             if face_info[4] > 0.8:
-                if overlap / bbox_px_count >= 0.5 and overlap > best_overlap:
+                if overlap * 1.0 / bbox_px_count >= 0.5 and overlap > best_overlap:
                     best_bbox = face_info
                     best_landmark = landmark
                     best_overlap = overlap
@@ -84,6 +86,9 @@ def detect_face_by_image(query, masks):
                 _x = im_width
             if _y >= im_height:
                 _y = im_height
+
+            # uncomment when using super_res_faces.pkl for extracting VGGFace2 feature for query 
+            # x, y, _x, _y = extendBB(image.shape[:2], x, y, _x, _y)
 
             face = image[y: _y, x: _x]
             face = cv2.cvtColor(face, cv2.COLOR_RGB2BGR)

@@ -1,10 +1,10 @@
 #!/bin/bash
-video_list="../../data/raw_data/info/video_226.txt"
+video_list="../../data/raw_data/info/${1}"
 SECONDS=0
 while IFS= read -r video_name 
 do
     
-    file="../../data/raw_data/info/master_shot_226.txt"
+    file="../../data/raw_data/info/master_shot_reference.txt"
     found=false
     echo "Searching $video_name in master_shot_reference.txt ..."
 
@@ -29,10 +29,12 @@ do
 	start_time="$3"
 	end_time="$4"
 	output="../../data/raw_data/shots/$2.mp4"
+    # output="./$2.mp4"
 
 	if [ ! -f $output ]
 	then
-	    ffmpeg -nostdin -ss $start_time -i $name -to $end_time -c:v libx264 -c:a aac -copyts $output
+	    # ffmpeg -nostdin -ss $start_time -i $name -to $end_time -c:v libx264 -c:a aac -copyts $output
+        ffmpeg -nostdin -ss $start_time -i $name -to $end_time -vcodec copy -acodec copy -copyts $output
 	fi
 
 	# echo "!Warning: Path $output is already existed"
