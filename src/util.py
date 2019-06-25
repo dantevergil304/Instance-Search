@@ -116,6 +116,65 @@ def cosine_similarity(vector_a, vector_b):
     return np.dot((vector_a / l2_vector_a), (vector_b.T / l2_vector_b))
 
 
+def matching_audio_feature(feature_a, feature_b):
+    '''
+    feature_a : list feature of shot a
+    feature_b : list feature of shot b
+    '''
+
+    row_a = feature_a.shape[0]
+    row_b = feature_b.shape[0]
+    longer, shorter = feature_a, feature_b
+    if row_a < row_b:
+        longer, shorter = feature_b, feature_a
+    step = 0
+    max_cosine =0
+    # list_sum = []
+    while True:
+        if len(shorter) + step > len(longer):
+            break
+        sum_dis = 0
+        for i in range(len(shorter)):
+            sum_dis += cosine_similarity(shorter[i], longer[i + step])
+        sum_dis = sum_dis / len(shorter)
+        if sum_dis >  max_cosine:
+            max_cosine = sum_dis
+            # list_sum.append(sum_dis)
+        step += 1 
+    return max_cosine
+
+
+def matching_audio_feature_with_padding(embedding_a, embedding_b):
+    sec_a = embedding_a.shape[0]
+    sec_b = embedding_b.shape[0]
+
+    embedding_b = np.concatenate((np.zeros((sec_a-1, 128)), embedding_b, np.zeros((sec_a-1, 128))))
+
+
+    all_sims = []
+    for i in range(0, sec_a-1 + sec_b):
+        total_sim = 0 
+        total_embeddings = sec_a
+        for j in range(0, sec_a):
+            sim = cosine_similarity(embedding_a[j], embedding_b[i+j])
+            total_sim += sim
+            if sim == 0: 
+                total_embeddings -= 1
+
+        all_sims.append(total_sim/total_embeddings)
+
+    return max(all_sims)
+
+
+def mean_max_similarity_audio(query_embedding, test_embedding):
+    num_q = len(query_embedding)
+    total_sim = 0
+    for emb in query_embedding:
+        total_sim += matching_audio_feature_with_padding(emb, test_embedding)
+
+    return total_sim / num_q
+
+
 def write_result_to_file(query_id, result, file_path):
     with open(file_path, 'w') as f:
         for i, record in enumerate(result):
