@@ -137,17 +137,17 @@ def extract_feature_from_query_VGGFace2():
         #     feat = extract_feature_from_face_VGGFace2(frame, bb)
 
         #     np.save(os.path.join(save_path, name + str(idx) + '.npy'), feat)
-        with open(os.path.join(query_feature_folder, name, 'super_res_faces.pkl'), 'rb') as f:
-            faces = pickle.load(f)
+        with open(os.path.join(query_feature_folder, name, 'query_shot_feature_py2.pkl'), 'rb') as f:
+            shot_face_feat = pickle.load(f)
 
-        for idx, face in enumerate(faces):
+        for idx, (face, _) in enumerate(shot_face_feat):
             if face is None:
                 continue
             # cv2.imshow('fig', face)
             # cv2.waitKey()
             # cv2.destroyAllWindows()
             feat = extract_feature_from_face_img_VGGFace2(face)
-            np.save(os.path.join(save_path, name + str(idx) + '.npy'), feat)
+            np.save(os.path.join(save_path, name + str(idx) + '.shot.npy'), feat)
             
 
 

@@ -234,10 +234,12 @@ def fine_tune(train_data, save_path, numStep=None, batchSize=32, eps=10):
 def extract_feature_from_face_list(model_path, faces_list):
     model = load_model(model_path)
 
-    feature_extractor = Model(model.input, model.get_layer('fc6').output)
+    feature_extractor = Model(model.input, model.get_layer('fc7').output)
 
     resized_faces_list = []
-    for face in faces_list:
+    num_face = len(faces_list)
+    print(f"[+] Extract feature from {num_face} faces of SVM training data")
+    for idx, face in enumerate(faces_list):
         resized_face = cv2.resize(face, (224, 224))
         resized_faces_list.append(resized_face)
 

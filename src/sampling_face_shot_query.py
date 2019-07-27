@@ -12,12 +12,11 @@ if __name__ == '__main__':
         search_cfg = json.load(f)
 
     query_folder = cfg['raw_data']['queries_folder']
-    inlier_faces_folder = '../data/raw_data/queries/2019/shot_query_faces'
+    inlier_faces_folder = '../data/raw_data/queries/2019/shot_query_faces_with_bbox_extended'
 
     # names = ['chelsea', 'darrin', 'garry', 'heather',
     #          'jane', 'jack', 'max', 'minty', 'mo', 'zainab']
-    # names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
-    names = ['heather', 'sean', 'shirley']
+    names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey', 'heather', 'sean', 'shirley']
 
     num_sampling = 10
     for name in names:
@@ -35,7 +34,7 @@ if __name__ == '__main__':
                 step = 1
 
             save_path = os.path.join(
-                '../data/raw_data/queries/2019/sampling_shot_query_faces', name, str(i))
+                '../data/raw_data/queries/2019/sampling_shot_query_faces_with_bbox_extended', name, str(i))
             if not os.path.exists(save_path):
                 os.makedirs(save_path, exist_ok=True)
             for i in range(0, len(faces), step):

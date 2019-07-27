@@ -352,59 +352,7 @@ class SearchEngine(object):
         ############################################################
         ################### GET NEGATIVE SAMPLES ###################
         ############################################################
-        # for seqNum in range(400):
-        #     record = result[seqNum]
-        #     shot_id = record[0]
-        #     video_id = shot_id.split('_')[0][4:]
-
-        #     frameSet = set()
-        #     for r in record[2][0]:
-        #         frameSet.add(r[0][0])
-        #     frameNum = len(frameSet)
-
-        #     # Load faces and landmarks files
-        #     with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
-        #         faces = pickle.load(f)
-        #     with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
-        #         landmarks = pickle.load(f)
-
-        #     # Get bad face
-        #     bad_face_data = sorted(calculate_average_faces_sim(
-        #         record), key=lambda x: x[1])[(-frameNum-8):-frameNum]
-
-        #     for face_data in bad_face_data:
-
-        #         frame_file = face_data[0][0]
-        #         frame = cv2.imread(os.path.join(
-        #             self.frames_folder, 'video' + video_id, shot_id, frame_file))
-        #         height, width = frame.shape[:2]
-
-
-        #         bad_face_landmark = None
-        #         for face, landmark in zip(faces, landmarks):
-        #             if face == face_data[0]:
-        #                 bad_face_landmark = landmark
-        #                 break
-
-        #         image_points = []
-        #         for i in range(int(len(bad_face_landmark)/2.)):
-        #             x, y = int(bad_face_landmark[i]), int(bad_face_landmark[i+5])
-        #             image_points.append((x, y))
-        #             # cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
-        #         image_points = np.array(image_points, dtype='double')
-
-        #         x, y, _x, _y = face_data[0][1]
-        #         # x, y, _x, _y = extendBB((height, width), x, y, _x, _y, ratio=1.0)
-        #         bad_face = frame[y:_y, x:_x]
-        #         X.append(bad_face)
-        #         landmarks_info.append((image_points, (height, width)))
-
-        #         Y.append(0)
-
-        all_bad_faces = []
-        all_bad_faces_sim = []
-        all_bad_faces_landmark = []
-        for seqNum in range(1000):
+        for seqNum in range(100):
             record = result[seqNum]
             shot_id = record[0]
             video_id = shot_id.split('_')[0][4:]
@@ -422,7 +370,7 @@ class SearchEngine(object):
 
             # Get bad face
             bad_face_data = sorted(calculate_average_faces_sim(
-                record), key=lambda x: x[1])[:-frameNum]
+                record), key=lambda x: x[1])[(-frameNum-4):-frameNum]
 
             for face_data in bad_face_data:
 
@@ -448,17 +396,69 @@ class SearchEngine(object):
                 x, y, _x, _y = face_data[0][1]
                 # x, y, _x, _y = extendBB((height, width), x, y, _x, _y, ratio=1.0)
                 bad_face = frame[y:_y, x:_x]
+                X.append(bad_face)
+                landmarks_info.append((image_points, (height, width)))
 
-                all_bad_faces.append(bad_face)
-                all_bad_faces_sim.append(np.asscalar(face_data[1]))
-                all_bad_faces_landmark.append((image_points, (height, width)))
+                Y.append(0)
 
-        _, all_bad_faces, all_bad_faces_landmark = zip(*sorted((list(zip(all_bad_faces_sim, all_bad_faces, all_bad_faces_landmark))), key=lambda x: x[0]))
+        # all_bad_faces = []
+        # all_bad_faces_sim = []
+        # all_bad_faces_landmark = []
+        # for seqNum in range(100):
+        #     record = result[seqNum]
+        #     shot_id = record[0]
+        #     video_id = shot_id.split('_')[0][4:]
 
-        num_pos = len(X)
-        X.extend(all_bad_faces[-num_pos:])
-        landmarks_info.extend(all_bad_faces_landmark[-num_pos:])
-        Y.extend([0] * num_pos)
+        #     frameSet = set()
+        #     for r in record[2][0]:
+        #         frameSet.add(r[0][0])
+        #     frameNum = len(frameSet)
+
+        #     # Load faces and landmarks files
+        #     with open(os.path.join(self.faces_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
+        #         faces = pickle.load(f)
+        #     with open(os.path.join(self.landmarks_folder, 'video' + video_id, shot_id + '.pickle'), 'rb') as f:
+        #         landmarks = pickle.load(f)
+
+        #     # Get bad face
+        #     bad_face_data = sorted(calculate_average_faces_sim(
+        #         record), key=lambda x: x[1])[:-frameNum]
+
+        #     for face_data in bad_face_data:
+
+        #         frame_file = face_data[0][0]
+        #         frame = cv2.imread(os.path.join(
+        #             self.frames_folder, 'video' + video_id, shot_id, frame_file))
+        #         height, width = frame.shape[:2]
+
+
+        #         bad_face_landmark = None
+        #         for face, landmark in zip(faces, landmarks):
+        #             if face == face_data[0]:
+        #                 bad_face_landmark = landmark
+        #                 break
+
+        #         image_points = []
+        #         for i in range(int(len(bad_face_landmark)/2.)):
+        #             x, y = int(bad_face_landmark[i]), int(bad_face_landmark[i+5])
+        #             image_points.append((x, y))
+        #             # cv2.circle(frame, (x, y), 2, (0, 255, 0), 2)
+        #         image_points = np.array(image_points, dtype='double')
+
+        #         x, y, _x, _y = face_data[0][1]
+        #         # x, y, _x, _y = extendBB((height, width), x, y, _x, _y, ratio=1.0)
+        #         bad_face = frame[y:_y, x:_x]
+
+        #         all_bad_faces.append(bad_face)
+        #         all_bad_faces_sim.append(np.asscalar(face_data[1]))
+        #         all_bad_faces_landmark.append((image_points, (height, width)))
+
+        # _, all_bad_faces, all_bad_faces_landmark = zip(*sorted((list(zip(all_bad_faces_sim, all_bad_faces, all_bad_faces_landmark))), key=lambda x: x[0]))
+
+        # num_pos = len(X)
+        # X.extend(all_bad_faces[-num_pos:])
+        # landmarks_info.extend(all_bad_faces_landmark[-num_pos:])
+        # Y.extend([0] * num_pos)
 
         # Filter Bad Faces in training data
         if rmBadFaces is not None:
@@ -469,6 +469,18 @@ class SearchEngine(object):
 
     def form_SVM_training_set(self, result, thresh=0.7, rmBadFaces=None):
         X, Y = self.form_training_set(result, thresh, rmBadFaces)
+
+        print('[+] Extracting face features')
+        model_path = os.path.join(
+            self.vgg_fine_tune_model_path, self.query_name, 'vgg_model.h5')
+        features = extract_feature_from_face_list(model_path, X)
+        print('[+] Finished extracting face features')
+
+        K.clear_session()
+        return [features, Y], [X, Y]
+
+    def form_SVM_training_set_using_best_face_in_each_shot(self, result, rmBadFaces=None):
+        X, Y = self.form_training_set_using_best_face_in_each_shot(result, rmBadFaces)
 
         print('[+] Extracting face features')
         model_path = os.path.join(
@@ -571,8 +583,8 @@ class SearchEngine(object):
         print('[+] Finished computing similarity for all shots')
 
         if isStage3:
-            person_similarity = 0.8 * stats.zscore(
-                cosine_similarity) + 0.2 * stats.zscore(classification_score)
+            person_similarity = 0.7 * stats.zscore(
+                cosine_similarity) + 0.3 * stats.zscore(classification_score)
             shot_id, _, frames_with_bb_sim = zip(*result)
             result = list(zip(shot_id,
                               person_similarity, frames_with_bb_sim))
@@ -581,7 +593,7 @@ class SearchEngine(object):
         print("[+] Search completed")
         # with open(os.path.join('../temp', str(block_interval) + '.pkl'), 'wb') as f:
         #     pickle.dump(result, f)
-        return result[:5000]
+        return result[:1000]
 
     def multiprocess_stage_1(self, query, feature_folder, isStage3=False):
         total_videos = len(os.listdir(self.frames_folder))
@@ -610,7 +622,7 @@ class SearchEngine(object):
 
         result = [item for sublist in result for item in sublist]
         result.sort(reverse=True, key=lambda x: x[1])
-        return result[:5000]
+        return result[:1000]
         #     p = multiprocessing.Process(target=self.uniprocess_stage_1,
         #                                 args=(query, feature_folder,
         #                                       isStage3, (start_idx, end_idx)))
@@ -708,7 +720,7 @@ class SearchEngine(object):
             self.vgg_fine_tune_model_path, self.query_name, 'vgg_model.h5')
         fine_tune_vgg = load_model(vgg_fine_tune_model_path)
         feature_extractor = Model(
-            fine_tune_vgg.input, fine_tune_vgg.get_layer('fc6').output)
+            fine_tune_vgg.input, fine_tune_vgg.get_layer('fc7').output)
         for face in query:
             # faces_features store extractly like query_faces_sr except with addtional information, feature of query faces
             feature = extract_feature_from_face(feature_extractor, face[0])
@@ -801,6 +813,7 @@ class SearchEngine(object):
             vgg_model = VGGFace(input_shape=(224, 224, 3), pooling='avg')
             out = vgg_model.get_layer(self.search_cfg["feature_descriptor"]).output
             default_vgg = Model(vgg_model.input, out)
+            # default_vgg = VGGFace(input_shape=(224,224,3), pooling='avg', include_top=False)
 
             for face in faces_sr:
                 if face is not None:
@@ -850,6 +863,8 @@ class SearchEngine(object):
                 #     query_faces[idx + 4] = None
                 # self.sticher.save_query_shot_face(temp_query_shot_feature, query_faces[4:],
                 #                                     save_path=os.path.join(root_result_folder, "shot_query_example.jpg"))
+            else:
+                query_faces = self.remove_bad_faces(faces_features)
 
         elif self.rmBF_method == 'landmark_based':
             if self.rmBF_landmarks_params['landmark_type'] == 'dlib':
@@ -982,7 +997,7 @@ class SearchEngine(object):
                 # training_set = self.form_training_set(
                 #     result[:100], thresh=0.85, rmBadFaces=None)
                 training_set = self.form_training_set_using_best_face_in_each_shot(
-                    result[:1000], rmBadFaces=None)
+                    result[:100], rmBadFaces=None)
                 with open(training_set_path, "wb") as f:
                     pickle.dump(training_set, f)
                 self.sticher.process_training_set(
@@ -993,29 +1008,29 @@ class SearchEngine(object):
                     training_set = pickle.load(f)
                 print("[+] Loaded training data")
 
-            # finetuned_query_faces  = self.stage_2(query_faces, training_set,
-            #                       multiprocess=multiprocess)
-            finetuned_query_faces_save_path = os.path.join(root_result_folder, 'finetuned_query_faces.pkl')
-            if not os.path.isfile(finetuned_query_faces_save_path):
-                finetuned_query_faces  = self.stage_2(query_faces, training_set,
-                                      multiprocess=multiprocess)
-                with open(finetuned_query_faces_save_path, 'wb') as f:
-                    pickle.dump(finetuned_query_faces, f)
-            else:
-                with open(finetuned_query_faces_save_path, 'rb') as f:
-                    finetuned_query_faces = pickle.load(f)
+            finetuned_query_faces  = self.stage_2(query_faces, training_set,
+                                  multiprocess=multiprocess)
+            # finetuned_query_faces_save_path = os.path.join(root_result_folder, 'finetuned_query_faces.pkl')
+            # if not os.path.isfile(finetuned_query_faces_save_path):
+            #     finetuned_query_faces  = self.stage_2(query_faces, training_set,
+            #                           multiprocess=multiprocess)
+            #     with open(finetuned_query_faces_save_path, 'wb') as f:
+            #         pickle.dump(finetuned_query_faces, f)
+            # else:
+            #     with open(finetuned_query_faces_save_path, 'rb') as f:
+            #         finetuned_query_faces = pickle.load(f)
 
-                fine_tune_feature_folder = os.path.join(
-                    self.fine_tune_feature_folder, self.query_name)
-                result = self.stage_1(
-                    finetuned_query_faces, fine_tune_feature_folder, multiprocess=multiprocess)
-            
-                stage_2_execution_time = time.time() - start
+            #     fine_tune_feature_folder = os.path.join(
+            #         self.fine_tune_feature_folder, self.query_name)
+            #     result = self.stage_1(
+            #         finetuned_query_faces, fine_tune_feature_folder, multiprocess=multiprocess)
+            # 
+            #     stage_2_execution_time = time.time() - start
 
-                write_result_to_file(self.query_name, result, os.path.join(
-                    root_result_folder, 'stage 2', "result.txt"))
-                write_result(self.query_name, result, os.path.join(
-                    root_result_folder, "stage_2.pkl"))
+            #     write_result_to_file(self.query_name, result, os.path.join(
+            #         root_result_folder, 'stage 2', "result.txt"))
+            #     write_result(self.query_name, result, os.path.join(
+            #         root_result_folder, "stage_2.pkl"))
 
         if isStage3:
             print(
@@ -1042,8 +1057,10 @@ class SearchEngine(object):
                 self.svm_training_data_folder, self.query_name, "faces_training_data.pkl")
 
             if not os.path.exists(training_set_path):
-                training_set, faces_training_set = self.form_SVM_training_set(
-                    result[:200], thresh=0.65, rmBadFaces=self._PEsolvePnP)
+                # training_set, faces_training_set = self.form_SVM_training_set(
+                #     result[:200], thresh=0.65, rmBadFaces=self._PEsolvePnP)
+                training_set, faces_training_set = self.form_SVM_training_set_using_best_face_in_each_shot(result[:1000], rmBadFaces=None)
+                
 
                 with open(training_set_path, "wb") as f:
                     pickle.dump(training_set, f)
@@ -1051,7 +1068,7 @@ class SearchEngine(object):
                 with open(faces_training_set_path, 'wb') as f:
                     pickle.dump(faces_training_set, f)
                 self.sticher.process_training_set(
-                    faces_training_set_path, save_path=os.path.join(self.svm_training_data_folder, self.query_name))
+                    faces_training_set_path, save_path=os.path.join(self.svm_training_data_folder, self.query_name), shape=(15, 18))
 
                 print("[+] Builded training data")
             else:
@@ -1068,8 +1085,7 @@ class SearchEngine(object):
                 root_result_folder, 'stage 3', "result.txt"))
             write_result(self.query_name, result, os.path.join(
                 root_result_folder, "stage_3.pkl"))
-            # self.sticher.save_shots_max_images(
-            #     result, stage_3_path)
+
 
         with open(os.path.join(self.result_path, self.query_name, 'log.txt'), 'w') as f:
             f.write("Execution time of stage 1 : " +
@@ -1093,18 +1109,14 @@ if __name__ == '__main__':
     query_folder = cfg['raw_data']['queries_folder']
     query_shot_folder = cfg['raw_data']['query_shot_folder']
 
-    names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
-    # names = ['jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
-    # names = ['stacey']
+    # names = ['bradley', 'denise', 'dot', 'heather', 'ian', 'jack', 'jane', 'max', 'pat', 'phil', 'sean', 'shirley', 'stacey']
     # names = ["9104", "9115", "9116", "9119", "9124", "9138", "9143"]
-    # names = ["chelsea", "darrin", "garry", "heather", "jack",
-    #             "jane", "max", "minty", "mo", "zainab"]
-    # names = ['heather', 'jack', 'jane', 'max', 'minty', 'mo', 'zainab']
+    names = ["chelsea", "darrin", "garry", "heather", "jack",
+                "jane", "max", "minty", "mo", "zainab"]
+    # names = ['chelsea', 'darrin']
     # names = ['mo']
-    # names = ['max', 'jack']
-    # names = ['minty', 'mo', 'zainab']
     # names = ['archie', 'billy', 'ian', 'janine', 'peggy', 'phil', 'ryan', 'shirley']
-    # names = ['minty', 'mo', 'zainab']
+
     # Search
     search_engine = SearchEngine(ImageSticher())
     print("[+] Initialized searh engine")
@@ -1125,8 +1137,6 @@ if __name__ == '__main__':
 
         query = [os.path.join(query_folder, q) for q in query]
         masks = [os.path.join(query_folder, m) for m in masks]
-        print("Query paths:", query)
-        print("Mask paths:", masks)
         print("============================================================================\n\n")
         print()
         print("                       QUERY CHARACTER : %s\n\n" % (name))
@@ -1141,4 +1151,4 @@ if __name__ == '__main__':
         search_engine.query_shot_folder = os.path.join(query_shot_folder, name)
         
         search_engine.searching(
-            query, masks, isStage1=True, isStage2=False, isStage3=False, multiprocess=True, use_query_shots=(search_cfg['use_query_shots'] == 'True'))
+            query, masks, isStage1=False, isStage2=False, isStage3=False, multiprocess=False, use_query_shots=(search_cfg['use_query_shots'] == 'True'))

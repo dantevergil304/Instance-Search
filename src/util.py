@@ -116,6 +116,10 @@ def cosine_similarity(vector_a, vector_b):
     return np.dot((vector_a / l2_vector_a), (vector_b.T / l2_vector_b))
 
 
+def euclidDistance(vector_a, vector_b):
+    return 100000-np.linalg.norm(vector_a - vector_b)
+
+
 def matching_audio_feature(feature_a, feature_b):
     '''
     feature_a : list feature of shot a
@@ -128,7 +132,7 @@ def matching_audio_feature(feature_a, feature_b):
     if row_a < row_b:
         longer, shorter = feature_b, feature_a
     step = 0
-    max_cosine =0
+    max_cosine = 0
     # list_sum = []
     while True:
         if len(shorter) + step > len(longer):
@@ -137,28 +141,28 @@ def matching_audio_feature(feature_a, feature_b):
         for i in range(len(shorter)):
             sum_dis += cosine_similarity(shorter[i], longer[i + step])
         sum_dis = sum_dis / len(shorter)
-        if sum_dis >  max_cosine:
+        if sum_dis > max_cosine:
             max_cosine = sum_dis
             # list_sum.append(sum_dis)
-        step += 1 
+        step += 1
     return max_cosine
 
 
-def matching_audio_feature_with_padding(embedding_a, embedding_b):
+def matching_audio_feature_with_padding(embedding_a, embedding_b, sim_func):
     sec_a = embedding_a.shape[0]
     sec_b = embedding_b.shape[0]
 
-    embedding_b = np.concatenate((np.zeros((sec_a-1, 128)), embedding_b, np.zeros((sec_a-1, 128))))
-
+    embedding_b = np.concatenate(
+        (np.zeros((sec_a-1, 128)), embedding_b, np.zeros((sec_a-1, 128))))
 
     all_sims = []
     for i in range(0, sec_a-1 + sec_b):
-        total_sim = 0 
+        total_sim = 0
         total_embeddings = sec_a
         for j in range(0, sec_a):
-            sim = cosine_similarity(embedding_a[j], embedding_b[i+j])
+            sim = sim_func(embedding_a[j], embedding_b[i+j])
             total_sim += sim
-            if sim == 0: 
+            if sim == 0:
                 total_embeddings -= 1
 
         all_sims.append(total_sim/total_embeddings)
@@ -166,13 +170,87 @@ def matching_audio_feature_with_padding(embedding_a, embedding_b):
     return max(all_sims)
 
 
-def mean_max_similarity_audio(query_embedding, test_embedding):
+def matching_max_audio_feature_with_padding(embedding_a, embedding_b, sim_func):
+    sec_a = embedding_a.shape[0]
+    sec_b = embedding_b.shape[0]
+
+    embedding_b = np.concatenate(
+        (np.zeros((sec_a-1, 128)), embedding_b, np.zeros((sec_a-1, 128))))
+
+    all_sims = []
+    for i in range(0, sec_a-1 + sec_b):
+        max_sim = 0
+        for j in range(0, sec_a):
+            max_sim = max(max_sim, sim_func(embedding_a[j], embedding_b[i+j]))
+
+        all_sims.append(max_sim)
+
+    return max(all_sims)
+
+
+def mean_max_similarity_audio(query_embedding, test_embedding, matching_func, sim_func):
     num_q = len(query_embedding)
     total_sim = 0
     for emb in query_embedding:
-        total_sim += matching_audio_feature_with_padding(emb, test_embedding)
+        total_sim += matching_func(emb, test_embedding, sim_func)
 
     return total_sim / num_q
+
+
+def max_max_similarity_audio(query_embedding, test_embedding, matching_func, sim_func, max_score=None):
+    num_q = len(query_embedding)
+    final_sim = 0
+    for emb in query_embedding:
+        sim = matching_func(emb, test_embedding, sim_func)
+        # print('sim', sim)
+        if max_score is not None and sim >= 2*max_score: 
+            print('sim', sim)
+            continue
+        final_sim = max(final_sim, sim)
+
+    return final_sim
+
+
+def get_maximum_matching_score_audio(query_embedding, sim_func):
+    num_query_embedding = len(query_embedding)
+    
+    max_score = 0
+    for i in range(0, num_query_embedding):
+        for j in range(i+1, num_query_embedding): 
+            max_score = max(max_score, matching_max_audio_feature_with_padding(query_embedding[i], query_embedding[j], sim_func))
+    return max_score
+
+
+def pairwise_matching_audio(query_embedding, test_embedding, max_score, sim_func):
+    return max_max_similarity_audio(query_embedding, test_embedding, matching_max_audio_feature_with_padding, sim_func, max_score)
+
+
+def mean_max_similarity_action(query_embedding, test_embedding):
+    num_q = len(query_embedding)
+    total_sim = 0
+    for emb in query_embedding:
+        total_sim += cosine_similarity(emb, test_embedding)
+    return total_sim / num_q
+
+
+def mean_max_similarity_semantic(topic_embeddings, test_embeddings):
+    '''
+    Param:
+    - topic_embeddings: list of list of query embeddings
+    - test_embeddings: list of test embeddings
+    '''
+    total = 0
+    count = 0
+    for query_embeddings in topic_embeddings:
+        max_score = 0
+        for q_emb in query_embeddings:
+            for t_emb in test_embeddings:
+                sim_score = cosine_similarity(q_emb, t_emb)
+                max_score = max(max_score, sim_score)
+        total += max_score
+        count += 1
+
+    return total/count 
 
 
 def write_result_to_file(query_id, result, file_path):

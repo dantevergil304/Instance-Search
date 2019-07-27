@@ -69,10 +69,13 @@ def extract_kf_shot_queries(shot_query_path, shot_query_frames_path, sampling_ra
             KeyframeExtraction(shot_video, save_path, max_frame_per_shot=10, sampling_rate=sampling_rate)
 
 if __name__ == '__main__':
+    for video_path in glob.glob('../data/raw_data/queries/2019/actions.examples/*mp4'): 
+        KeyframeExtraction(video_path, '../data/raw_data/queries/2019/kf.actions.examples', sampling_rate=3, max_frame_per_shot=None)
+
     #####################################EXTRACT KF SHOT QUERY#####################################
-    shot_query_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/tv18.person.example.shots'
-    shot_query_frames_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/shot_query_frames/10_frame_per_shot'
-    extract_kf_shot_queries(shot_query_path, shot_query_frames_path)
+    # shot_query_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/tv18.person.example.shots'
+    # shot_query_frames_path = '/storageStudents/K2015/duyld/hieudvm/Instance_Search/data/raw_data/queries/2018/shot_query_frames/10_frame_per_shot'
+    # extract_kf_shot_queries(shot_query_path, shot_query_frames_path)
     
 
     #################################EXTRACT KF SHOT VIDEO DATABASE#################################

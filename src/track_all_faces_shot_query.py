@@ -1,6 +1,7 @@
 from track_face_shot_query import getCorrectFrameInShot
 from face_extraction import extract_faces_from_image
 from ServiceMTCNN import detect_face as lib
+from deep_learning_utils import extendBB
 
 import tensorflow as tf
 import cv2
@@ -231,7 +232,8 @@ def getAllFaceTrackShotQuery(topic_frame_path, shot_path):
         all_face_tracks.extend(face_tracks)
         all_visualize_face_tracks.extend(visualize_face_tracks)
 
-    # for idx, face_track in enumerate(all_visualize_face_tracks):
+    for idx, face_track in enumerate(all_visualize_face_tracks):
+            cv2.imwrite(f'../data/raw_data/queries/2019/track_face_images_for_report/track_face_type2/face_track.{idx}.png', face_track)
     #     cv2.imshow(f'face track {idx}', face_track)
     # cv2.waitKey()
     # cv2.destroyAllWindows()
@@ -284,7 +286,15 @@ def getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path):
     track_bbs = all_tracks[correct_track_key]
     track_faces = []
     for fr_offset, face_offset, _ in track_bbs:
+
         face = all_faces[fr_offset][face_offset]
+
+        # uncomment when you want to extend face bbox
+        # frame = all_frames[fr_offset]
+        # bb = all_bbs[fr_offset][face_offset]
+        # x, y, _x, _y = extendBB(frame.shape[:2], bb[0], bb[1], bb[2], bb[3])
+        # face = frame[y:_y, x:_x]
+
         track_faces.append(face)
         height, width = face.shape[:2]
         face_width = int(default_face_height * width / height)
@@ -313,58 +323,58 @@ def main():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    # topic_frame_path = os.path.join(query_folder, 'denise.4.src.png')
-    # topic_mask_path = os.path.join(query_folder, 'denise.4.mask.png')
-    # shot_path = os.path.join(
-    #     query_shot_folder, 'denise', 'shot236_36.mp4')
+    topic_frame_path = os.path.join(query_folder, 'bradley.1.src.png')
+    topic_mask_path = os.path.join(query_folder, 'bradley.1.mask.png')
+    shot_path = os.path.join(
+        query_shot_folder, 'bradley', 'shot0_80.mp4')
 
-    # getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
+    getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
 
     # topic_file = os.path.join(info_folder, 'ins.auto.topics.2019.xml')
-    topic_file = os.path.join(info_folder, 'ins.progress.topics.2019.xml')
-    print(topic_file)
-    tree = ET.parse(topic_file)
-    root = tree.getroot()
+    # topic_file = os.path.join(info_folder, 'ins.auto.topics.2019.xml')
+    # print(topic_file)
+    # tree = ET.parse(topic_file)
+    # root = tree.getroot()
  
-    info_dict = dict()
-    for topic in root.findall('videoInstanceTopic'):
-        for image in topic.findall('imageExample'):
-            info_dict[image.attrib['src']] = image.attrib['shotID']
+    # info_dict = dict()
+    # for topic in root.findall('videoInstanceTopic'):
+    #     for image in topic.findall('imageExample'):
+    #         info_dict[image.attrib['src']] = image.attrib['shotID']
  
-    names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
-    names = ['shirley']
-    for name in names:
-        for i in range(1, 5):
-            topic_frame_path = os.path.join(
-                query_folder, f'{name}.{i}.src.png')
-            topic_mask_path = os.path.join(
-                query_folder, f'{name}.{i}.mask.png')
-            shot_path = os.path.join(
-                query_shot_folder, f'{name}', info_dict[f'{name}.{i}.src.png'] + '.mp4')
+    # names = ['bradley', 'max', 'ian', 'pat', 'denise', 'phil', 'jane', 'jack', 'dot', 'stacey']
+    # # names = ['sean', 'heather', 'shirley']
+    # for name in names:
+    #     for i in range(1, 5):
+    #         topic_frame_path = os.path.join(
+    #             query_folder, f'{name}.{i}.src.png')
+    #         topic_mask_path = os.path.join(
+    #             query_folder, f'{name}.{i}.mask.png')
+    #         shot_path = os.path.join(
+    #             query_shot_folder, f'{name}', info_dict[f'{name}.{i}.src.png'] + '.mp4')
  
-            print('[+] Topic frame path', topic_frame_path)
-            print('[+] Topic mask path', topic_mask_path)
-            print('[+] Topic shot path', shot_path)
+    #         print('[+] Topic frame path', topic_frame_path)
+    #         print('[+] Topic mask path', topic_mask_path)
+    #         print('[+] Topic shot path', shot_path)
  
-            track_faces, visualize_faces, topic_face_index = getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
+    #         track_faces, visualize_faces, topic_face_index = getTopicFaceTrackShotQuery(topic_frame_path, topic_mask_path, shot_path)
  
-            shot_face_folder = os.path.join(
-                query_folder, 'shot_query_faces', f'{name}', f'{i}')
-            if not os.path.exists(shot_face_folder):
-                os.makedirs(shot_face_folder, exist_ok=True)
-            for idx, face in enumerate(track_faces):
-                cv2.imwrite(os.path.join(shot_face_folder,
-                                         f'{name}.{idx}.face.png'), face)
-                with open(os.path.join(shot_face_folder, f'topic_face_index.txt'), 'w') as f:
-                    f.write(str(topic_face_index))
+    #         shot_face_folder = os.path.join(
+    #             query_folder, 'shot_query_faces_with_bbox_extended', f'{name}', f'{i}')
+    #         if not os.path.exists(shot_face_folder):
+    #             os.makedirs(shot_face_folder, exist_ok=True)
+    #         for idx, face in enumerate(track_faces):
+    #             cv2.imwrite(os.path.join(shot_face_folder,
+    #                                      f'{name}.{idx}.face.png'), face)
+    #             with open(os.path.join(shot_face_folder, f'topic_face_index.txt'), 'w') as f:
+    #                 f.write(str(topic_face_index))
  
-            visualize_face_folder = os.path.join(
-                query_folder, 'visualize_shot_query_faces', f'{name}')
-            if not os.path.exists(visualize_face_folder):
-                os.makedirs(visualize_face_folder, exist_ok=True)
-            if visualize_faces is not None:
-                cv2.imwrite(os.path.join(visualize_face_folder,
-                                         f'facetrack.{i}.png'), visualize_faces)
+    #         visualize_face_folder = os.path.join(
+    #             query_folder, 'visualize_shot_query_faces', f'{name}')
+    #         if not os.path.exists(visualize_face_folder):
+    #             os.makedirs(visualize_face_folder, exist_ok=True)
+    #         if visualize_faces is not None:
+    #             cv2.imwrite(os.path.join(visualize_face_folder,
+    #                                      f'facetrack.bboxextend.{i}.png'), visualize_faces)
 
 
 if __name__ == '__main__':

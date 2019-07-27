@@ -346,7 +346,7 @@ def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
     all_faces = []
     all_bbs = []
     for frame in all_frames:
-        faces, bbs = extract_faces_from_image(frame, pnet, rnet, onet)
+        faces, bbs, scores = extract_faces_from_image(frame, pnet, rnet, onet)
         all_faces.append(faces)
         all_bbs.append(bbs)
 
@@ -450,15 +450,16 @@ def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
                 selectedBB[2], selectedBB[3]), (0, 255, 0), 2)
             tracked_faces.insert(0, selectedFace)
             topic_face_index += 1
-        # cv2.imshow('forward tracking', visualize_frame)
+        # cv2.imshow('backward tracking', visualize_frame)
+        cv2.imwrite(f'../data/raw_data/queries/2018/track_face_images_for_report/track_type1/backward_frames/{i}.jpg', visualize_frame)
 
         # mask_img = np.hstack((features_mask, faces_mask))
         # result_img = np.hstack((features_in_bb_mask, frame_gray))
         # visualize_img = np.vstack((mask_img, result_img))
         # cv2.imshow('visualize img', visualize_img)
 
-        # cv2.waitKey()
-        # cv2.destroyAllWindows()
+        cv2.waitKey()
+        cv2.destroyAllWindows()
 
         old_topic_frame_gray = frame_gray.copy()
         p0 = good_new.reshape(-1, 1, 2)
@@ -491,7 +492,7 @@ def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
         for new, old in zip(good_new, good_old):
             x_new, y_new = new.ravel()
             x_old, y_old = old.ravel()
-            # cv2.circle(frame_gray, (x_new, y_new), 2, (0, 255, 0), -1)
+            cv2.circle(visualize_frame, (x_new, y_new), 2, (0, 255, 0), -1)
             cv2.circle(features_mask, (x_new, y_new), 0, 255, 0)
         # cv2.imshow('feature mask', features_mask)
 
@@ -520,6 +521,7 @@ def getCorrectFaceTrackInShot(topic_frame_path, topic_mask_path, shot_path):
                 selectedBB[2], selectedBB[3]), (0, 255, 0), 2)
             tracked_faces.append(selectedFace)
         # cv2.imshow('forward tracking', visualize_frame)
+        cv2.imwrite(f'../data/raw_data/queries/2018/track_face_images_for_report/track_type1/forward_frames/{i}.jpg', visualize_frame)
 
         # mask_img = np.hstack((features_mask, faces_mask))
         # result_img = np.hstack((features_in_bb_mask, frame_gray))
@@ -560,67 +562,67 @@ def main_track_type1():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    # test_topic_frame_path = os.path.join(query_folder, 'heather.1.src.png')
-    # test_topic_mask_path = os.path.join(query_folder, 'heather.1.mask.png')
-    # test_shot_path = os.path.join(
-    #     query_shot_folder, 'heather', 'shot0_769.mp4')
-    # topic_frame = cv2.imread(test_topic_frame_path)
-    # topic_frame = cv2.resize(topic_frame, (768, 576))
+    test_topic_frame_path = os.path.join(query_folder, 'garry.2.src.png')
+    test_topic_mask_path = os.path.join(query_folder, 'garry.2.mask.png')
+    test_shot_path = os.path.join(
+        query_shot_folder, 'garry', 'shot0_591.mp4')
+    topic_frame = cv2.imread(test_topic_frame_path)
+    topic_frame = cv2.resize(topic_frame, (768, 576))
 
-    # all_frames, topic_offset = getCorrectFrameInShot(
-    #     test_topic_frame_path, test_shot_path)
+    all_frames, topic_offset = getCorrectFrameInShot(
+        test_topic_frame_path, test_shot_path)
 
-    # # cv2.imshow('found frame', all_frames[topic_offset])
-    # # cv2.imshow('gt frame', topic_frame)
-    # # cv2.waitKey()
-    # # cv2.destroyAllWindows()
-    # getCorrectFaceTrackInShot(test_topic_frame_path,
-    #                           test_topic_mask_path, test_shot_path)
+    # cv2.imshow('found frame', all_frames[topic_offset])
+    # cv2.imshow('gt frame', topic_frame)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
+    getCorrectFaceTrackInShot(test_topic_frame_path,
+                              test_topic_mask_path, test_shot_path)
 
-    topic_file = os.path.join(info_folder, 'ins.auto.topics.2018.xml')
-    print(topic_file)
-    tree = ET.parse(topic_file)
-    root = tree.getroot()
+    # topic_file = os.path.join(info_folder, 'ins.auto.topics.2018.xml')
+    # print(topic_file)
+    # tree = ET.parse(topic_file)
+    # root = tree.getroot()
 
-    info_dict = dict()
-    for topic in root.findall('videoInstanceTopic'):
-        for image in topic.findall('imageExample'):
-            info_dict[image.attrib['src']] = image.attrib['shotID']
+    # info_dict = dict()
+    # for topic in root.findall('videoInstanceTopic'):
+    #     for image in topic.findall('imageExample'):
+    #         info_dict[image.attrib['src']] = image.attrib['shotID']
 
-    names = ['chelsea', 'darrin', 'garry', 'heather',
-             'jane', 'jack', 'max', 'minty', 'mo', 'zainab']
-    names = ['jack', 'max', 'minty', 'mo', 'zainab']
-    # names = ['chelsea']
-    for name in names:
-        for i in range(1, 5):
-            topic_frame_path = os.path.join(
-                query_folder, f'{name}.{i}.src.png')
-            topic_mask_path = os.path.join(
-                query_folder, f'{name}.{i}.mask.png')
-            shot_path = os.path.join(
-                query_shot_folder, f'{name}', info_dict[f'{name}.{i}.src.png'] + '.mp4')
+    # names = ['chelsea', 'darrin', 'garry', 'heather',
+    #          'jane', 'jack', 'max', 'minty', 'mo', 'zainab']
+    # names = ['jack', 'max', 'minty', 'mo', 'zainab']
+    # # names = ['chelsea']
+    # for name in names:
+    #     for i in range(1, 5):
+    #         topic_frame_path = os.path.join(
+    #             query_folder, f'{name}.{i}.src.png')
+    #         topic_mask_path = os.path.join(
+    #             query_folder, f'{name}.{i}.mask.png')
+    #         shot_path = os.path.join(
+    #             query_shot_folder, f'{name}', info_dict[f'{name}.{i}.src.png'] + '.mp4')
 
-            print(topic_frame_path, topic_mask_path, shot_path)
+    #         print(topic_frame_path, topic_mask_path, shot_path)
 
-            track_faces, visualize_faces, topic_face_index = getCorrectFaceTrackInShot(
-                topic_frame_path, topic_mask_path, shot_path)
+    #         track_faces, visualize_faces, topic_face_index = getCorrectFaceTrackInShot(
+    #             topic_frame_path, topic_mask_path, shot_path)
 
-            shot_face_folder = os.path.join(
-                query_folder, 'shot_query_faces', f'{name}', f'{i}')
-            if not os.path.exists(shot_face_folder):
-                os.makedirs(shot_face_folder, exist_ok=True)
-            for idx, face in enumerate(track_faces):
-                cv2.imwrite(os.path.join(shot_face_folder,
-                                         f'{name}.{idx}.face.png'), face)
-                with open(os.path.join(shot_face_folder, f'topic_face_index.txt'), 'w') as f:
-                    f.write(str(topic_face_index))
+    #         # shot_face_folder = os.path.join(
+    #         #     query_folder, 'shot_query_faces', f'{name}', f'{i}')
+    #         # if not os.path.exists(shot_face_folder):
+    #         #     os.makedirs(shot_face_folder, exist_ok=True)
+    #         # for idx, face in enumerate(track_faces):
+    #         #     cv2.imwrite(os.path.join(shot_face_folder,
+    #         #                              f'{name}.{idx}.face.png'), face)
+    #         #     with open(os.path.join(shot_face_folder, f'topic_face_index.txt'), 'w') as f:
+    #         #         f.write(str(topic_face_index))
 
-            visualize_face_folder = os.path.join(
-                query_folder, 'visualize_shot_query_faces', f'{name}')
-            if not os.path.exists(visualize_face_folder):
-                os.mkdir(visualize_face_folder)
-            cv2.imwrite(os.path.join(visualize_face_folder,
-                                     f'facetrack.{i}.png'), visualize_faces)
+    #         # visualize_face_folder = os.path.join(
+    #         #     query_folder, 'visualize_shot_query_faces', f'{name}')
+    #         # if not os.path.exists(visualize_face_folder):
+    #         #     os.mkdir(visualize_face_folder)
+    #         # cv2.imwrite(os.path.join(visualize_face_folder,
+    #         #                          f'facetrack.{i}.png'), visualize_faces)
 
 
 def main_track_type2():
@@ -632,10 +634,10 @@ def main_track_type2():
     query_shot_folder = cfg['raw_data']['shot_example_folder']
     info_folder = cfg['raw_data']['info_folder']
 
-    topic_frame_path = os.path.join(query_folder, 'chelsea.3.src.png')
-    topic_mask_path = os.path.join(query_folder, 'chelsea.3.mask.png')
+    topic_frame_path = os.path.join(query_folder, 'chelsea.1.src.png')
+    topic_mask_path = os.path.join(query_folder, 'chelsea.1.mask.png')
     shot_path = os.path.join(
-        query_shot_folder, 'chelsea', 'shot0_1146.mp4')
+        query_shot_folder, 'chelsea', 'shot0_1057.mp4')
 
 
     # all_tracked_faces, all_tracked_bbs = getFaceTracksInShot(topic_frame_path, topic_mask_path, shot_path)
@@ -687,4 +689,4 @@ def main_track_type2():
 
 
 if __name__ == '__main__':
-    main_track_type2()
+    main_track_type1()

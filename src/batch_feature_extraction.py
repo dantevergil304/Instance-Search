@@ -123,7 +123,7 @@ def extract_feat(model, faces_path, frames_path, video_id):
 
 def extract_database_faces_features(feature_extractor, frames_path, faces_path, features_path):
     start_t = time.time()
-    for video_id in range(237, 244):
+    for video_id in range(0, 244):
         print('\nProcessing video %d' % video_id)
         if os.path.exists(os.path.join(features_path, 'video' + str(video_id) + '.pkl')):
             print(f'File video{video_id}.pkl already existed!!!')
