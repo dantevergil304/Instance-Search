@@ -1,0 +1,3 @@
+Execution time of stage 1 : 0
+Execution time of stage 2 : 0
+Execution time of stage 3 : 0
